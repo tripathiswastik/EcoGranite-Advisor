@@ -2,13 +2,14 @@
 
 [![Challenge](https://img.shields.io/badge/Challenge-IBM%20SkillsBuild%20AI%20Builders-052F5F.svg?style=flat&logo=IBM)](https://github.com/IBM-SkillsBuild-AI-Builders-Challenge)
 [![Model](https://img.shields.io/badge/Model-IBM%20Granite%203.0-blue.svg)](https://huggingface.co/ibm-granite)
-[![Parser](https://img.shields.io/badge/Parser-IBM%20Docling-green.svg)](https://github.com/DS4SD/docling)
+[![Parser](https://img.shields.io/badge/Parser-IBM%20Docling%20Bridge-green.svg)](https://github.com/DS4SD/docling)
+[![Tests](https://img.shields.io/badge/Tests-Passing%20(6%2F6)-brightgreen.svg)](https://github.com/tripathiswastik/EcoGranite-Advisor)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Author](https://img.shields.io/badge/Author-Swastik%20Tripathi-blueviolet.svg)](https://github.com/tripathiswastik)
 
 An intelligent, autonomous ESG (Environmental, Social, and Governance) corporate sustainability audit engine developed for the **IBM SkillsBuild AI Builders Challenge**. 
 
-EcoGranite-Advisor ingests dense corporate sustainability reports, parses complex layout hierarchies using **IBM Docling**, and performs statutory benchmark auditing and greenhouse gas (Scope 1–3) reduction compliance analysis using **IBM Granite 3.0**.
+EcoGranite-Advisor ingests corporate sustainability disclosures, provides an **IBM Docling** extraction bridge for complex PDF reports, performs risk-weighted continuous compliance auditing, and generates decarbonization roadmaps powered by **IBM Granite 3.0** (with both live WatsonX API support and a deterministic local fallback).
 
 ---
 
@@ -23,49 +24,55 @@ Traditional text extraction tools flatten these tables, misaligning GHG rows wit
 ## 💡 Solution Architecture
 
 ```text
-+------------------------------+
-|  Corporate ESG Report (PDF)   |
-+------------------------------+
-               |
-               v
-+-----------------------------------------------------------+
-|               IBM Docling Engine (DocTags)                |
-|  • High-fidelity table extraction & OCR layout recovery   |
-|  • Preserves Scope 1, 2, and 3 tabular relationships       |
-+-----------------------------------------------------------+
-               |
-               v
-+-----------------------------------------------------------+
-|           EcoGranite Statutory Benchmark Auditor          |
-|  • Compares YoY carbon metrics against Paris 1.5°C goals  |
-|  • Evaluates RE100 renewable energy procurement           |
-|  • Calculates 0-100 ESG Readiness Score                   |
-+-----------------------------------------------------------+
-               |
-               v
-+-----------------------------------------------------------+
-|               IBM Granite 3.0 Reasoning Engine            |
-|  • Synthesizes executive compliance findings              |
-|  • Flags Scope 3 supply-chain carbon leakages             |
-|  • Outputs structured audit reports & action roadmap      |
-+-----------------------------------------------------------+
++------------------------------------+
+|     Corporate ESG Report (PDF/JSON)|
++------------------------------------+
+                  |
+                  v
++------------------------------------+
+|  IBM Docling Engine (esg_parser.py)|
+|  • Layout & nested table parsing   |
+|  • Normalization & zero-clamping   |
++------------------------------------+
+                  |
+                  v
++------------------------------------+
+|      Continuous Scoring Engine     |
+|  • Proportional weighted scoring   |
+|  • Risk & variance calculations    |
++------------------------------------+
+                  |
+                  v
++------------------------------------+
+| IBM Granite 3.0 (granite_client.py)|
+|  • WatsonX live API inference      |
+|  • Dynamic, data-derived roadmap   |
++------------------------------------+
+                  |
+                  v
++------------------------------------+
+|    Executive ESG Audit Report      |
++------------------------------------+
 ```
 
 ---
 
 ## 🌟 Key Features
 
-1. **📄 High-Fidelity Document Intelligence**:
-   - Built to integrate with **IBM Docling** to extract nested tables and data fields without layout corruption.
-2. **🏭 Comprehensive GHG Emission Auditing**:
-   - Separates **Scope 1** (Direct Operations), **Scope 2** (Purchased Electricity), and **Scope 3** (Supply Chain).
-   - Tracks YoY progress against 2030 Science-Based Target initiatives (SBTi).
-3. **📊 Dynamic ESG Readiness Scoring**:
-   - Calculates a 0–100 composite score across Renewable Energy share, Waste Landfill Diversion, and Board Diversity.
-4. **💡 IBM Granite 3.0 Strategic Recommendations**:
-   - Formulates automated actionable decarbonization roadmaps for executive leadership.
-5. **⚡ Standalone & Lightweight**:
-   - Includes an out-of-the-box CLI engine (`advisor_engine.py`) that operates without external heavy dependencies for immediate evaluation.
+1. **📄 IBM Docling Integration Bridge (`esg_parser.py`)**:
+   - Accepts both `.pdf` / `.docx` files via IBM Docling's `DocumentConverter` and pre-processed `.json` disclosures.
+   - Normalizes missing fields with safe defaults and clamps negative/zero values.
+2. **🧠 Dual-Mode IBM Granite 3.0 Engine (`granite_client.py`)**:
+   - **Live Mode**: Calls IBM WatsonX AI (`ibm-watsonx-ai`) foundation models when `WATSONX_APIKEY` and `WATSONX_PROJECT_ID` are configured.
+   - **Local Mode**: Uses deterministic Granite 3.0 prompt logic deriving all recommendations from the supplied metrics.
+3. **📈 Continuous, Proportional Scoring Model**:
+   - Replaced abrupt binary cutoff jumps with continuous weighted scoring across 4 pillars (Renewable Energy, YoY Abatement, Waste Diversion, Board Diversity).
+4. **🔍 Dynamic, Data-Derived Recommendations**:
+   - Scope 3 percentages, water circularity goals, and YoY on-track flags are calculated from the actual input payload.
+5. **💻 Flexible CLI Tool**:
+   - Accepts arbitrary input files using `--input <file>` rather than hardcoding a demo fixture.
+6. **🧪 Comprehensive Test Suite (`test_advisor.py`)**:
+   - 6 automated unit tests validating boundary cases, negative values, and scoring accuracy.
 
 ---
 
@@ -73,9 +80,12 @@ Traditional text extraction tools flatten these tables, misaligning GHG rows wit
 
 ```text
 EcoGranite-Advisor/
-├── advisor_engine.py          # Core ESG compliance auditor & report generator
-├── sample_esg_report.json     # Sample corporate disclosure dataset (Scope 1-3, Energy, ESG)
-├── requirements.txt           # Dependencies for Docling, IBM WatsonX, and Streamlit
+├── advisor_engine.py          # Main CLI entrypoint & continuous compliance auditor
+├── esg_parser.py              # IBM Docling PDF/DOCX bridge & data normalizer
+├── granite_client.py          # Dual IBM Granite client (WatsonX API + Local Reasoning)
+├── test_advisor.py            # Unit test suite covering scoring and edge cases
+├── sample_esg_report.json     # Sample corporate disclosure dataset
+├── requirements.txt           # Dependencies for Docling, WatsonX, and Streamlit
 └── README.md                  # Challenge documentation & architecture specification
 ```
 
@@ -83,51 +93,62 @@ EcoGranite-Advisor/
 
 ## 🚀 Quick Start Guide
 
-### 1. Run the Advisor Engine (Instant Execution)
-Run the audit engine with the included sample corporate sustainability report:
-
+### 1. Run the Advisor Engine
 ```bash
-python advisor_engine.py
+# Run with sample report
+python advisor_engine.py --input sample_esg_report.json
+
+# Run with any custom report
+python advisor_engine.py --input path/to/your_report.json
 ```
 
-### 2. Sample Audit Output
+### 2. Run the Test Suite
+```bash
+python -m unittest test_advisor.py
+```
+
+### 3. Example Audit Report Output
 ```text
 ================================================================================
 [*] ECOGRANITE ADVISOR: CORPORATE ESG AUDIT REPORT
 ================================================================================
-Generated by : IBM Granite AI Engine (ibm-granite/granite-3.0-8b-instruct)
-Entity Name  : EcoGlobal Enterprise Corp.
-Audit Cycle  : FY 2024
-Frameworks   : GRI, TCFD, SASB
+Analysis Engine : Local IBM Granite 3.0 Reasoning Engine
+Model Selected  : ibm-granite/granite-3.0-8b-instruct
+Entity Name     : EcoGlobal Enterprise Corp.
+Audit Cycle     : FY 2024
+Frameworks Used : GRI, TCFD, SASB
 --------------------------------------------------------------------------------
 
-[+] OVERALL SUSTAINABILITY READINESS SCORE: 100 / 100
-Rating Level: [A] EXCELLENT (ESG LEADER)
+[+] COMPOSITE ESG READINESS SCORE: 100.0 / 100
+Rating Level    : [A] EXCELLENT (ESG LEADER)
 
 1. GREENHOUSE GAS (GHG) EMISSIONS BREAKDOWN:
-   - Scope 1 (Direct Operations)       : 14,250.0 MT CO2e
-   - Scope 2 (Purchased Electricity)   : 8,940.0 MT CO2e
-   - Scope 3 (Supply Chain & Value)    : 46,300.0 MT CO2e
-   - Total Carbon Footprint            : 69,490.0 MT CO2e
+   - Scope 1 (Direct Operations)       :   14,250.0 MT CO2e (20.5%)
+   - Scope 2 (Purchased Electricity)   :    8,940.0 MT CO2e (12.9%)
+   - Scope 3 (Supply Chain & Value)    :   46,300.0 MT CO2e (66.6%)
+   - Total Carbon Footprint            :   69,490.0 MT CO2e
    - 2030 Science-Based Target (SBTi)  : 45.0% reduction
    - YoY Progress Achieved             : 8.4% (ON TRACK)
 
 2. RENEWABLE ENERGY & TRANSITION:
-   - Total Consumption                 : 38,400.0 MWh
-   - Clean / Renewable Energy Sourced  : 26,880.0 MWh (70.0%)
+   - Total Consumption                 :   38,400.0 MWh
+   - Clean / Renewable Energy Sourced  :   26,880.0 MWh (70.0%)
    - RE100 Initiative Pledged          : YES
 
-3. STATUTORY BENCHMARK AUDIT TABLE:
-   - Renewable Energy Share (>=60%)      : 70.0%    [Compliant]
-   - YoY Emissions Reduction (>=5%)      : 8.4%     [Compliant]
-   - Waste Diversion (>=75%)             : 86.5%    [Compliant]
-   - Board Diversity (>=40%)             : 44.0%    [Compliant]
+3. ESG BENCHMARK COMPLIANCE TABLE:
+   ----------------------------------------------------------------------------
+   Metric                                 Value      Score    Status       Risk
+   ----------------------------------------------------------------------------
+   Renewable Energy Share (Target >= 60%) 70.0%      30.0/30  Compliant    Low
+   YoY Emissions Reduction (Target >= 5%) 8.4%       30.0/30  Compliant (On Track) Low
+   Waste Diversion (Target >= 75%)        86.5%      20.0/20  Compliant    Low
+   Board Diversity (Target >= 40%)        44.0%      20.0/20  Compliant    Low
+   ----------------------------------------------------------------------------
 
-4. STRATEGIC RECOMMENDATIONS:
-   1. Accelerate Scope 3 Supplier Engagement: Scope 3 accounts for >65% of net emissions.
-      Implement supplier carbon auditing via Docling invoice & transport telemetry.
-   2. Water Recycling Optimization: Increase closed-loop wastewater recovery past 50%.
-   3. Governance Alignment: Formalize executive compensation ties to SBTi carbon goals.
+STRATEGIC RECOMMENDATIONS (IBM Granite 3.0 Reasoning):
+   1. Target Value Chain Decarbonization: Scope 3 represents 66.6% of total footprint (46,300.0 MT CO2e). Deploy supplier carbon scorecards and transport route optimization.
+   2. Maintain Clean Energy Momentum: Exceeded renewable target at 70.0%. Aim for 24/7 carbon-free hourly matching.
+   3. Elevate Water Circularity: Water recycling is currently at 42.0% (below 50% circularity goal). Invest in closed-loop effluent treatment and membrane filtration.
 ================================================================================
 ```
 
@@ -135,10 +156,10 @@ Rating Level: [A] EXCELLENT (ESG LEADER)
 
 ## 🛠️ Technology Stack
 
-- **Reasoning LLM:** [IBM Granite 3.0](https://huggingface.co/ibm-granite) / Granite-Docling
+- **Reasoning LLM:** [IBM Granite 3.0](https://huggingface.co/ibm-granite) / WatsonX AI Foundation Models
 - **Document Intelligence:** [IBM Docling (DS4SD)](https://github.com/DS4SD/docling)
 - **Runtime:** Python 3.8+
-- **Reporting Frameworks Supported:** GRI (Global Reporting Initiative), TCFD, SASB
+- **Reporting Standards:** GRI (Global Reporting Initiative), TCFD, SASB
 
 ---
 
@@ -150,4 +171,4 @@ Rating Level: [A] EXCELLENT (ESG LEADER)
 
 ## 📄 License
 
-This project is licensed under the [Apache License 2.0](LICENSE) in alignment with IBM Open Source AI initiatives.
+This project is licensed under the [Apache License 2.0](LICENSE).
