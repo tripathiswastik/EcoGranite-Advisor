@@ -198,7 +198,10 @@ with st.sidebar:
     # Reset button
     if st.button("🔄 Reset to Sample Disclosure", use_container_width=True):
         raw_data = load_default_dataset()
-        st.rerun()
+        if hasattr(st, "rerun"):
+            st.rerun()
+        elif hasattr(st, "experimental_rerun"):
+            st.experimental_rerun()
 
     # Sidebar Entity Summary
     st.markdown("---")
@@ -344,7 +347,10 @@ with tab_exec:
                 "Risk Rating": d["risk"]
             })
         df_bench = pd.DataFrame(bench_rows)
-        st.dataframe(df_bench, use_container_width=True, hide_index=True)
+        try:
+            st.dataframe(df_bench, use_container_width=True, hide_index=True)
+        except TypeError:
+            st.dataframe(df_bench, use_container_width=True)
 
 # ------------------------------------------
 # TAB 2: GHG Scope 1-3 Footprint Analysis
