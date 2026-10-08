@@ -1,6 +1,8 @@
 {
   "company_name": "Siemens AG",
   "reporting_year": 2024,
+  "country": "Germany",
+  "jurisdiction": "European Union (CSRD / EU Taxonomy) & Global",
   "standards": ["DEGREE Framework", "GRI", "TCFD", "SASB", "SBTi"],
   "framework_name": "DEGREE (Decarbonization, Ethics, Governance, Resource efficiency, Equity, Employability)",
   "emissions_metric_tons_co2e": {

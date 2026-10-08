@@ -1,6 +1,8 @@
 {
   "company_name": "CarbonHeavy Mining & Power Corp.",
   "reporting_year": 2024,
+  "country": "Australia",
+  "jurisdiction": "ASX & Global Resource Frameworks",
   "standards": ["GRI", "SASB"],
   "emissions_metric_tons_co2e": {
     "scope_1_direct": 185000.0,
