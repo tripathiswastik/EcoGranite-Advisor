@@ -11,10 +11,10 @@ import sys
 from typing import Dict, Any
 
 try:
-    import streamlit as st
-    import pandas as pd
-    import plotly.express as px
-    import plotly.graph_objects as go
+    import streamlit as st  # type: ignore
+    import pandas as pd  # type: ignore
+    import plotly.express as px  # type: ignore
+    import plotly.graph_objects as go  # type: ignore
 except ImportError as e:
     raise ImportError(
         f"Required UI packages missing ({e}). Run: pip install streamlit pandas plotly"
