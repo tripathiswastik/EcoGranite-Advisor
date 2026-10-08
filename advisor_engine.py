@@ -641,6 +641,94 @@ DATA RECONCILIATION & INTEGRITY:
             }
         ]
 
+    def calculate_framework_score(self, analysis: Dict[str, Any], framework: str = "GRI Baseline") -> Dict[str, Any]:
+        """
+        Real-time Statutory Framework Evaluator:
+        Recalculates compliance readiness, penalties, and rating tier across:
+        - GRI Baseline (Multi-stakeholder standard)
+        - CSRD (ESRS Strict EU standard with RE >= 80% hurdle)
+        - ISSB (IFRS S2 Financial Climate & Transition standard)
+        """
+        if not analysis.get("can_audit", True):
+            return {
+                "framework": framework,
+                "score": 0.0,
+                "tier": "[REFUSED] EXTRACTION FAILED",
+                "penalties": ["Missing audit disclosures"],
+                "focus": "N/A"
+            }
+
+        base_score = analysis.get("esg_readiness_score", 0.0)
+        m = analysis.get("metrics", {})
+        ren_pct = m.get("renewable_pct", 0.0)
+        supp_code = m.get("supplier_signoff_pct", 0.0)
+        target_2030 = m.get("target_reduction_2030_pct", 45.0)
+        recon_status = analysis.get("data_quality", {}).get("reconciliation_status", "PASSED")
+
+        penalties = []
+        if recon_status != "PASSED":
+            return {
+                "framework": framework,
+                "score": base_score,
+                "tier": "[DISQUALIFIED] RECONCILIATION FAILURE",
+                "penalties": ["GHG Protocol scope mismatch contradicts reported total"],
+                "focus": "Data Reconciliation Integrity"
+            }
+
+        if "CSRD" in framework or "ESRS" in framework:
+            fw_name = "CSRD (ESRS Strict)"
+            score = base_score
+            # ESRS E1 Climate Hurdle: RE share < 80% incurs a penalty under strict criteria
+            if ren_pct < 80.0:
+                pen_val = round((80.0 - ren_pct) * 0.5, 1)
+                score -= pen_val
+                penalties.append(f"ESRS E1 Penalty: Renewable power {ren_pct:.1f}% is below 80% EU hurdle (-{pen_val} pts)")
+            # ESRS G1 Business Conduct: Supplier code of conduct < 95%
+            if supp_code < 95.0:
+                score -= 10.0
+                penalties.append(f"ESRS G1 Penalty: Supplier Code sign-off {supp_code:.1f}% < 95% threshold (-10 pts)")
+            
+            score = round(max(0.0, min(100.0, score)), 1)
+            tier = "[A] EXCELLENT (CSRD LEADER)" if score >= 85.0 else ("[B] GOOD (PROGRESSING)" if score >= 70.0 else ("[C] MODERATE" if score >= 50.0 else "[D] CRITICAL"))
+            return {
+                "framework": fw_name,
+                "score": score,
+                "tier": tier,
+                "penalties": penalties,
+                "focus": "Double Materiality, Value Chain Telemetry & 80% Clean Power Hurdle"
+            }
+
+        elif "ISSB" in framework or "IFRS" in framework:
+            fw_name = "ISSB (IFRS S2)"
+            score = base_score
+            # IFRS S2 Climate-related Disclosures: Target must be aligned with 1.5°C pathway (>= 45% by 2030)
+            if target_2030 < 45.0:
+                score -= 15.0
+                penalties.append(f"IFRS S2 Transition Risk: 2030 emissions reduction target {target_2030:.1f}% is below 45% SBTi 1.5°C threshold (-15 pts)")
+            if m.get("scope_3_pct", 50.0) > 65.0 and supp_code < 90.0:
+                score -= 10.0
+                penalties.append("IFRS S2 Supply Chain Risk: Unmitigated Scope 3 exposure > 65% with < 90% supplier coverage (-10 pts)")
+
+            score = round(max(0.0, min(100.0, score)), 1)
+            tier = "[A] EXCELLENT (ISSB LEADER)" if score >= 85.0 else ("[B] GOOD (PROGRESSING)" if score >= 70.0 else ("[C] MODERATE" if score >= 50.0 else "[D] CRITICAL"))
+            return {
+                "framework": fw_name,
+                "score": score,
+                "tier": tier,
+                "penalties": penalties,
+                "focus": "Financial Capital Allocation, Transition Plans & Climate Value-at-Risk"
+            }
+
+        else:
+            # GRI Baseline
+            return {
+                "framework": "GRI Baseline",
+                "score": base_score,
+                "tier": analysis.get("rating_tier", "[A] EXCELLENT (ESG LEADER)"),
+                "penalties": penalties,
+                "focus": "Multi-stakeholder Impact Transparency (GRI 300 Environmental & GRI 400 Social)"
+            }
+
 
 def main():
     parser = argparse.ArgumentParser(description="EcoGranite-Advisor: Autonomous ESG Sustainability Auditor")

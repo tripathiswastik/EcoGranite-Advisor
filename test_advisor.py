@@ -274,6 +274,19 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
         self.assertTrue(any(c["company_name"] == "Infosys Limited" for c in scorecard))
         self.assertTrue(any(c["company_name"] == "Siemens AG" for c in scorecard))
 
+        # 5. Real-Time Framework Toggle (CSRD, ISSB, GRI)
+        gri_eval = self.advisor.calculate_framework_score(analysis, framework="GRI Baseline")
+        self.assertEqual(gri_eval["framework"], "GRI Baseline")
+        self.assertEqual(gri_eval["score"], 100.0)
+
+        csrd_eval = self.advisor.calculate_framework_score(analysis, framework="CSRD (ESRS)")
+        self.assertIn("CSRD", csrd_eval["framework"])
+        self.assertLessEqual(csrd_eval["score"], 100.0)  # penalizes if RE < 80%
+
+        issb_eval = self.advisor.calculate_framework_score(analysis, framework="ISSB (IFRS S2)")
+        self.assertIn("ISSB", issb_eval["framework"])
+        self.assertGreaterEqual(issb_eval["score"], 80.0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -356,6 +356,19 @@ with st.sidebar:
         help="Applies SASB SICS / ISSB IFRS S2 industry-specific materiality weights dynamically."
     )
 
+    # Real-Time Statutory Framework Selector
+    st.markdown("#### ⚖️ Regulatory Audit Framework")
+    framework_choice = st.radio(
+        "Active Statutory Standard",
+        options=[
+            "🌐 GRI Baseline (Standard)",
+            "🇪🇺 CSRD (ESRS Strict)",
+            "📈 ISSB (IFRS S2 Financial Climate)"
+        ],
+        index=0,
+        help="Instantly recalculates readiness scores, hurdle rates, and penalties under different global regulatory frameworks."
+    )
+
     # Sidebar Engine Diagnostics
     st.markdown("---")
     st.markdown("#### ⚙️ Engine Diagnostics")
@@ -407,10 +420,15 @@ score = analysis["esg_readiness_score"]
 rating_tier = analysis["rating_tier"]
 dq = analysis.get("data_quality", {})
 
+# Real-time Framework Recalculation
+fw_eval = advisor.calculate_framework_score(analysis, framework=framework_choice)
+active_score = fw_eval["score"]
+active_tier = fw_eval["tier"]
+
 # Header
 st.markdown(
     f"<div class='hero-title'>EcoGranite-Advisor: ESG Sustainability Auditor</div>"
-    f"<span class='badge-pill badge-granite'>Granite 3.0 Reasoning</span>",
+    f"<span class='badge-pill badge-granite'>{fw_eval['framework']} Active</span>",
     unsafe_allow_html=True
 )
 country_flag = "🇮🇳 " if "India" in country else ("🇩🇪 " if "Germany" in country else "")
@@ -438,16 +456,16 @@ elif dq.get("validation_warnings"):
 k1, k2, k3, k4 = st.columns(4)
 
 with k1:
-    is_leader = "EXCELLENT" in rating_tier or "GOOD" in rating_tier
+    is_leader = "EXCELLENT" in active_tier or "GOOD" in active_tier
     st.markdown(f"""
     <div class="kpi-container">
         <div class="kpi-top">
-            <span class="kpi-label">Readiness Score</span>
+            <span class="kpi-label">Readiness ({fw_eval['framework'].split()[0]})</span>
             <span class="kpi-icon">🎯</span>
         </div>
-        <div class="kpi-value">{score:.1f}<span style="font-size:1.1rem; color:#94A3B8;"> / 100</span></div>
+        <div class="kpi-value">{active_score:.1f}<span style="font-size:1.1rem; color:#94A3B8;"> / 100</span></div>
         <span class="kpi-sub {'kpi-sub-positive' if is_leader else 'kpi-sub-negative'}">
-            {rating_tier.split(']')[0] + ']' if ']' in rating_tier else rating_tier}
+            {active_tier.split(']')[0] + ']' if ']' in active_tier else active_tier}
         </span>
     </div>
     """, unsafe_allow_html=True)
@@ -537,12 +555,12 @@ with tab_exec:
 
     with col_chart_left:
         # Metallic Gauge Chart
-        gauge_color = "#10B981" if ("EXCELLENT" in rating_tier) else ("#3B82F6" if ("GOOD" in rating_tier) else ("#F59E0B" if score >= 50.0 else "#EF4444"))
+        gauge_color = "#10B981" if ("EXCELLENT" in active_tier) else ("#3B82F6" if ("GOOD" in active_tier) else ("#F59E0B" if active_score >= 50.0 else "#EF4444"))
         fig_gauge = go.Figure(go.Indicator(
             mode="gauge+number",
-            value=score,
+            value=active_score,
             domain={'x': [0, 1], 'y': [0, 1]},
-            title={'text': "Composite Readiness (0-100)", 'font': {'size': 18, 'color': '#1E3A8A', 'family': 'Outfit'}},
+            title={'text': f"{fw_eval['framework']} Score", 'font': {'size': 18, 'color': '#1E3A8A', 'family': 'Outfit'}},
             gauge={
                 'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#94A3B8"},
                 'bar': {'color': gauge_color, 'thickness': 0.28},
