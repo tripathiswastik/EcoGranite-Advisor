@@ -242,6 +242,38 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
         self.assertIn("SEBI BRSR", india_analysis["standards"])
         self.assertGreaterEqual(india_analysis["esg_readiness_score"], 85.0)
 
+    # =========================================================================
+    # 9. v3.0 SASB Sector Weighting & CSRD Double Materiality
+    # =========================================================================
+    def test_sasb_sector_weighting_and_double_materiality(self):
+        """Test SASB SICS sector weighting profiles and CSRD double materiality."""
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        good_path = os.path.join(base_dir, "sample_esg_report.json")
+        good_data = self.advisor.load_document(good_path)
+        analysis = self.advisor.analyze_compliance(good_data)
+
+        # 1. Tech Sector weighting (Scope 3 45%)
+        tech_weighted = self.advisor.calculate_sector_weighted_score(analysis, sector="Technology & Software")
+        self.assertIn("Scope 3 Value Chain (45%)", tech_weighted["weights"])
+        self.assertGreater(tech_weighted["weighted_score"], 80.0)
+
+        # 2. Heavy Industry weighting (Scope 1 35%)
+        heavy_weighted = self.advisor.calculate_sector_weighted_score(analysis, sector="Heavy Industry & Metals")
+        self.assertIn("Scope 1 Direct Operations (35%)", heavy_weighted["weights"])
+        self.assertGreater(heavy_weighted["weighted_score"], 80.0)
+
+        # 3. Double Materiality Matrix (ESRS 1 & 2)
+        dm = self.advisor.evaluate_double_materiality(analysis)
+        self.assertIn("financial_risk_score", dm)
+        self.assertIn("impact_materiality_score", dm)
+        self.assertIn("quadrant", dm)
+
+        # 4. Multi-Framework Scorecard
+        scorecard = self.advisor.generate_multi_framework_scorecard()
+        self.assertEqual(len(scorecard), 3)
+        self.assertTrue(any(c["company_name"] == "Infosys Limited" for c in scorecard))
+        self.assertTrue(any(c["company_name"] == "Siemens AG" for c in scorecard))
+
 
 if __name__ == "__main__":
     unittest.main()

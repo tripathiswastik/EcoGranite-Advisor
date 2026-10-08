@@ -288,3 +288,32 @@ In India, ESG compliance transitioned from voluntary business responsibility pri
 * **Water Stewardship (Zero Liquid Discharge)**: Recycles 65.4% of total water consumption through decentralized membrane bioreactors (MBRs) and smart water meters across corporate campuses.
 * **Statutory Compliance**: Exceeds Section 135 CSR statutory requirements with 2.05% net profit allocation ($50M+ USD equivalent) toward community education, rural healthcare, and environmental conservation.
 
+---
+
+## 7. EcoGranite v3.0 Architectural Upgrades
+
+### 1. Framework Gaps & Key Upgrades Delivered in v3.0
+
+| Domain | Limitations in Early Iterations | **v3.0 Architectural Upgrade** | Regulatory & Standard Alignment |
+| :--- | :--- | :--- | :--- |
+| **Metric Weighting** | Equal 25% scoring weighting across all 4 metrics regardless of sector. | **SASB SICS Sector-Specific Materiality Weighting**: Adjusts weights dynamically based on industry profiles (e.g., Tech/Software vs. Heavy Industry vs. Financials). | **SASB / ISSB (IFRS S2)** |
+| **Materiality Model** | Focused primarily on single financial risk (outside-in impact). | **CSRD Double Materiality Matrix**: Evaluates dual axes—**Financial Risk Exposure** alongside **Inside-Out Environmental & Social Impact**. | **EU CSRD (ESRS 1 & ESRS 2)** |
+| **Indian Statutory Rules** | Basic qualitative BRSR tracking. | **SEBI BRSR Core Assurable Tracking**: Explicitly monitors the 9 mandatory attributes requiring independent reasonable assurance (LTIFR, Zero Liquid Discharge, MSME payment terms). | **SEBI BRSR Core Circular** |
+| **Scope 3 Granularity** | Single aggregated Scope 3 emission metric. | **Disaggregated Category Analysis**: Separates Category 1 (Purchased Goods), Cat 3 (T&D Losses), Cat 11 (Use of Sold Goods), and Cat 15 (Financed Emissions). | **GHG Protocol Scope 3 Standard** |
+
+### 2. Sector-Specific SASB Weighting Architecture
+
+To prevent distorting readiness scores for low-direct-emission sectors (such as IT services) versus capital-intensive industries (such as utilities and manufacturing), **EcoGranite v3.0** applies tailored weighting profiles:
+
+* **Technology & Software**: Scope 3 Value Chain (**45%**), Scope 2 Power (**20%**), Governance & Diversity (**20%**), Scope 1 Direct (**5%**), Water & Waste (**10%**).
+* **Heavy Industry & Metals**: Scope 1 Direct (**35%**), Scope 2 Power (**25%**), Scope 3 Value Chain (**20%**), Water & Waste (**15%**), Governance (**5%**).
+* **Financial Institutions**: Scope 3 Category 15 Financed Emissions (**65%**), Board Independence (**20%**), Scope 2 Power (**8%**), Scope 1 (**2%**), Water (**5%**).
+
+### 3. Multi-Company Framework Scorecard Summary
+
+| Company Entity | Audit Cycle | GRI Baseline Score | CSRD ESRS Strict Score | SEBI BRSR Core Status | Primary Audit Priority |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **EcoGlobal Enterprise Corp.** | FY 2024 | **100 / 100 [A]** | **80 / 100 [A]** *(RE Share < 80%)* | **Compliant** *(BRSR Core Assured)* | Accelerate Scope 3 Tier-1 Supplier Telemetry |
+| **Siemens AG** | FY 2024 | **100 / 100 [A]** | **95 / 100 [A]** *(84.0% RE Power)* | **Compliant** *(EU Taxonomy Aligned)* | Primary LCAs for Scope 3 Category 1 Raw Materials |
+| **Infosys Limited** | FY 2024 | **100 / 100 [A]** | **90 / 100 [A]** *(74.8% RE Power)* | **BRSR Core Leader** | Campus Zero Liquid Discharge & VPPAs |
+

@@ -340,6 +340,22 @@ with st.sidebar:
         else:
             raw_data = load_dataset_file("sample_esg_report.json")
 
+    # SASB SICS Sector Materiality Profile Selector
+    st.markdown("#### 📐 SASB SICS Materiality Profile")
+    comp_str = str(raw_data.get("company_name", "") if isinstance(raw_data, dict) else "")
+    default_sec_idx = 0 if "Infosys" in comp_str else (1 if ("CarbonHeavy" in comp_str or "Siemens" in comp_str) else 3)
+    sector_choice = st.selectbox(
+        "Industry Weighting Archetype",
+        options=[
+            "Technology & Software",
+            "Heavy Industry & Metals",
+            "Financial Institutions",
+            "General Enterprise"
+        ],
+        index=default_sec_idx,
+        help="Applies SASB SICS / ISSB IFRS S2 industry-specific materiality weights dynamically."
+    )
+
     # Sidebar Engine Diagnostics
     st.markdown("---")
     st.markdown("#### ⚙️ Engine Diagnostics")
@@ -604,6 +620,113 @@ with tab_exec:
         st.dataframe(df_bench, use_container_width=True, hide_index=True)
     except TypeError:
         st.dataframe(df_bench, use_container_width=True)
+
+    # ==========================================
+    # v3.0: SASB SICS Sector Materiality Weighting
+    # ==========================================
+    st.markdown("---")
+    st.markdown("### 📐 SASB SICS Sector-Specific Materiality Weighting")
+    st.caption("Adjusts scoring weights dynamically based on industry operational characteristics (SASB SICS / ISSB IFRS S2).")
+
+    sec_res = advisor.calculate_sector_weighted_score(analysis, sector=sector_choice)
+    sec_col1, sec_col2 = st.columns([1, 1.2])
+
+    with sec_col1:
+        st.markdown(f"""
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:1.2rem; border-left:5px solid #3B82F6;">
+            <div style="font-size:0.85rem; font-weight:700; color:#64748B; text-transform:uppercase;">Selected Sector Profile</div>
+            <div style="font-size:1.35rem; font-weight:800; color:#0F172A; font-family:'Outfit', sans-serif;">{sec_res['sector']}</div>
+            <div style="margin-top:0.6rem; font-size:1.6rem; font-weight:800; color:#2563EB;">
+                {sec_res['weighted_score']:.1f}<span style="font-size:1rem; color:#64748B;"> / 100</span>
+            </div>
+            <div style="font-size:0.82rem; color:#475569; margin-top:0.3rem;">
+                Standard: <i>{sec_res.get('alignment', 'SASB SICS')}</i>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with sec_col2:
+        df_sec_weights = pd.DataFrame([
+            {"Material Category": cat, "Weight": f"{w:.0f}%"}
+            for cat, w in sec_res.get("weights", {}).items()
+        ])
+        st.dataframe(df_sec_weights, use_container_width=True, hide_index=True)
+
+    # ==========================================
+    # v3.0: CSRD Double Materiality Matrix (ESRS 1 & 2)
+    # ==========================================
+    st.markdown("---")
+    st.markdown("### 🌐 CSRD Double Materiality Matrix (ESRS 1 & ESRS 2)")
+    st.caption("Dual-axis evaluation: Financial Risk Exposure (Outside-In) vs. Environmental & Social Impact (Inside-Out).")
+
+    dm = advisor.evaluate_double_materiality(analysis)
+    f_risk = dm["financial_risk_score"]
+    i_impact = dm["impact_materiality_score"]
+
+    col_dm_plot, col_dm_desc = st.columns([1.1, 0.9])
+
+    with col_dm_plot:
+        fig_dm = go.Figure()
+        # Shaded background quadrants
+        fig_dm.add_shape(type="rect", x0=50, y0=50, x1=100, y1=100, fillcolor="rgba(239, 68, 68, 0.1)", line=dict(width=0))
+        fig_dm.add_shape(type="rect", x0=0, y0=50, x1=50, y1=100, fillcolor="rgba(245, 158, 11, 0.1)", line=dict(width=0))
+        fig_dm.add_shape(type="rect", x0=50, y0=0, x1=100, y1=50, fillcolor="rgba(59, 130, 246, 0.1)", line=dict(width=0))
+        fig_dm.add_shape(type="rect", x0=0, y0=0, x1=50, y1=50, fillcolor="rgba(16, 185, 129, 0.1)", line=dict(width=0))
+
+        # Quadrant threshold lines
+        fig_dm.add_hline(y=50, line_dash="dash", line_color="#94A3B8")
+        fig_dm.add_vline(x=50, line_dash="dash", line_color="#94A3B8")
+
+        # Entity scatter point
+        fig_dm.add_trace(go.Scatter(
+            x=[i_impact],
+            y=[f_risk],
+            mode="markers+text",
+            marker=dict(size=18, color="#1E40AF", line=dict(width=2, color="#FFFFFF")),
+            text=[company_name.split()[0]],
+            textposition="top center",
+            name="Audited Entity"
+        ))
+
+        fig_dm.update_layout(
+            title="Double Materiality Positioning",
+            xaxis_title="Inside-Out Environmental & Social Impact (0-100)",
+            yaxis_title="Outside-In Financial Risk Exposure (0-100)",
+            xaxis=dict(range=[0, 100]),
+            yaxis=dict(range=[0, 100]),
+            height=320,
+            margin=dict(l=30, r=30, t=40, b=30),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(248,250,252,0.6)'
+        )
+        st.plotly_chart(fig_dm, use_container_width=True)
+
+    with col_dm_desc:
+        st.markdown(f"""
+        <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:12px; padding:1.1rem; height:100%;">
+            <div style="font-size:0.85rem; font-weight:700; color:#64748B; text-transform:uppercase;">Materiality Quadrant</div>
+            <div style="font-size:1.15rem; font-weight:800; color:#0F172A; margin:0.3rem 0;">{dm['quadrant']}</div>
+            <div style="font-size:0.88rem; color:#334155; line-height:1.5;">
+                • <b>Outside-In Financial Exposure</b>: <code>{f_risk:.1f}/100</code> (Evaluates carbon taxation, fossil price exposure, and compliance litigation).<br>
+                • <b>Inside-Out Planetary Impact</b>: <code>{i_impact:.1f}/100</code> (Evaluates total GHG volume, water neutrality, and resource circularity).
+            </div>
+            <div style="margin-top:0.7rem; font-size:0.8rem; color:#059669; font-weight:600;">
+                ✓ Compliant with EU CSRD ESRS 1 General Principles
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ==========================================
+    # v3.0: Multi-Company Framework Scorecard Summary
+    # ==========================================
+    st.markdown("---")
+    st.markdown("### 🏆 Multi-Company Framework Scorecard Summary")
+    st.caption("Cross-framework benchmark comparison across GRI Baseline, CSRD ESRS Strict, and SEBI BRSR Core.")
+
+    scorecard_data = advisor.generate_multi_framework_scorecard()
+    df_sc = pd.DataFrame(scorecard_data)
+    df_sc.columns = ["Company Entity", "Audit Cycle", "GRI Baseline Score", "CSRD ESRS Strict Score", "SEBI BRSR Core Status", "Primary Audit Priority"]
+    st.dataframe(df_sc, use_container_width=True, hide_index=True)
 
 # ------------------------------------------
 # TAB 2: GHG Scope 1-3 Waterfall & Analytics

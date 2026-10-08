@@ -93,8 +93,27 @@ Traditional text extraction tools flatten these tables, misaligning GHG rows wit
    - **Companies Act Section 135**: Audits mandatory 2% CSR spend on average net profits.
    - **SEBI LODR Regulation 17(1)**: Verifies independent director thresholds (≥50%) and gender diversity.
    - **Benchmark Dataset (`sample_esg_report_india.json`)**: Models Infosys Limited with 74.8% renewable electricity, 65.4% campus water recycling (Zero Liquid Discharge), and supply chain Scope 3 disclosures.
-7. **🧪 Comprehensive Adversarial Test Suite (`test_advisor.py`)**:
-   - 9 automated unit tests validating boundary cases, lower-is-better scoring, missing data, reconciliation failures, and extraction refusal.
+7. **📐 SASB SICS Sector-Specific Materiality Weighting (v3.0)**:
+   - Eliminates distortions between capital-heavy manufacturing and low-direct-emission technology enterprises:
+     - **Technology & Software**: Scope 3 Value Chain (45%), Scope 2 Power (20%), Governance (20%), Water & Waste (10%), Scope 1 (5%).
+     - **Heavy Industry & Metals**: Scope 1 Direct (35%), Scope 2 Power (25%), Scope 3 (20%), Water & Waste (15%), Governance (5%).
+     - **Financial Institutions**: Scope 3 Cat 15 Financed Emissions (65%), Board Independence (20%), Scope 2 (8%), Water (5%), Scope 1 (2%).
+8. **🌐 CSRD Double Materiality Matrix (ESRS 1 & ESRS 2 - v3.0)**:
+   - Evaluates dual materiality axes: **Outside-In Financial Risk Exposure** alongside **Inside-Out Environmental & Social Impact**.
+9. **🏆 Multi-Company Framework Scorecard Summary (v3.0)**:
+   - Standardized cross-framework audit scorecard comparing **EcoGlobal**, **Siemens AG**, and **Infosys Limited** across GRI Baseline, CSRD ESRS Strict, and SEBI BRSR Core.
+10. **🧪 Comprehensive Adversarial Test Suite (`test_advisor.py`)**:
+   - 10 automated unit tests (100% passing) validating continuous scoring, reconciliation, refusal, and v3.0 sector/double materiality models.
+
+---
+
+### 📊 Multi-Company Framework Scorecard Summary
+
+| Company Entity | Audit Cycle | GRI Baseline Score | CSRD ESRS Strict Score | SEBI BRSR Core Status | Primary Audit Priority |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **EcoGlobal Enterprise Corp.** | FY 2024 | **100 / 100 [A]** | **80 / 100 [A]** *(RE Share < 80%)* | **Compliant** *(BRSR Core Assured)* | Accelerate Scope 3 Tier-1 Supplier Telemetry |
+| **Siemens AG** | FY 2024 | **100 / 100 [A]** | **95 / 100 [A]** *(84.0% RE Power)* | **Compliant** *(EU Taxonomy Aligned)* | Primary LCAs for Scope 3 Category 1 Raw Materials |
+| **Infosys Limited** | FY 2024 | **100 / 100 [A]** | **90 / 100 [A]** *(74.8% RE Power)* | **BRSR Core Leader** | Campus Zero Liquid Discharge & VPPAs |
 
 ---
 
