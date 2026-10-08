@@ -303,6 +303,7 @@ with st.sidebar:
         "Select Disclosure Ingest Mode",
         options=[
             "📗 Sample: EcoGlobal Enterprise (Good/Compliant)",
+            "🏢 Benchmark: Siemens AG (Global Enterprise - DEGREE)",
             "📙 Sample: CarbonHeavy Corp (Lagging/Poor)",
             "📕 Sample: Incoherent Disclosures (Reconciliation Failure)",
             "📁 Upload Custom File (.json, .pdf, .docx)"
@@ -313,6 +314,8 @@ with st.sidebar:
     raw_data = None
     if data_source_mode == "📗 Sample: EcoGlobal Enterprise (Good/Compliant)":
         raw_data = load_dataset_file("sample_esg_report.json")
+    elif data_source_mode == "🏢 Benchmark: Siemens AG (Global Enterprise - DEGREE)":
+        raw_data = load_dataset_file("sample_esg_report_siemens.json")
     elif data_source_mode == "📙 Sample: CarbonHeavy Corp (Lagging/Poor)":
         raw_data = load_dataset_file("sample_esg_report_poor.json")
     elif data_source_mode == "📕 Sample: Incoherent Disclosures (Reconciliation Failure)":
@@ -651,6 +654,43 @@ with tab_ghg:
             f"of total emissions. In accordance with the Scope 3 Standard, Tier 1 supplier audits and Category 1 LCAs are required."
         )
 
+    # Figure 1: Real-World Enterprise Benchmark Comparison (Log Scale)
+    st.markdown("---")
+    st.markdown("#### 🌐 Figure 1: Enterprise GHG Emissions Comparison (Log Scale)")
+    st.caption("Comparison of Scope 1, Scope 2, and Upstream Scope 3 emissions between EcoGlobal Enterprise and global benchmark Siemens AG (kt CO2e).")
+
+    fig_bench_compare = go.Figure()
+    fig_bench_compare.add_trace(go.Bar(
+        name='Scope 1 (Direct)',
+        x=['EcoGlobal Enterprise', 'Siemens AG'],
+        y=[14.25, 220.5],
+        marker_color='#004F71'
+    ))
+    fig_bench_compare.add_trace(go.Bar(
+        name='Scope 2 (Electricity)',
+        x=['EcoGlobal Enterprise', 'Siemens AG'],
+        y=[8.94, 220.5],
+        marker_color='#00829B'
+    ))
+    fig_bench_compare.add_trace(go.Bar(
+        name='Scope 3 (Upstream / Value Chain)',
+        x=['EcoGlobal Enterprise', 'Siemens AG'],
+        y=[46.3, 416758.0],
+        marker_color='#A5D6E3'
+    ))
+
+    fig_bench_compare.update_layout(
+        barmode='group',
+        yaxis_type="log",
+        yaxis_title="kt CO2e (Log Scale)",
+        height=350,
+        margin=dict(l=20, r=20, t=30, b=20),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(248,250,252,0.8)'
+    )
+    st.plotly_chart(fig_bench_compare, use_container_width=True)
+
 # ------------------------------------------
 # TAB 3: Resources & Ethical Governance
 # ------------------------------------------
@@ -789,8 +829,9 @@ with tab_granite:
             """, unsafe_allow_html=True)
 
     # Corporate Benchmark Case Studies
-    with st.expander("🏢 Corporate Benchmark Case Studies (Abengoa, SC Johnson, BASF, IKEA, National Grid)"):
+    with st.expander("🏢 Corporate Benchmark Case Studies (Siemens AG, Abengoa, SC Johnson, BASF, IKEA, National Grid)"):
         st.markdown("""
+        - **Siemens AG (DEGREE Sustainability Framework)**: Achieved interim 2025 Scope 1 & 2 targets (-66% reduction, 441 kt CO2e) one year in advance; 84% renewable electricity; 32.6% female top management representation (exceeded); 20% executive ESG Stock Award index integration; 694M MT customer avoided emissions.
         - **Abengoa (Mandatory Supplier Verification)**: Enforces standardized GHG calculation templates across supply chain tiers, requiring third-party verified emissions integrated into its mandatory Social Responsibility Code of Conduct.
         - **SC Johnson (CapEx vs. Impact Decarbonization Matrix)**: Classifies emissions reduction options across Capital Expenditure levels (Low/Mid/High CapEx) against strategic impact (Game-Changing vs Incremental) and implementation horizons.
         - **BASF (Category 1 Raw Material LCA Disaggregation)**: Evaluated Category 1 purchased goods, revealing that 93% of emissions stemmed directly from raw material extraction; deployed primary LCAs covering ~90% of purchased products by weight.

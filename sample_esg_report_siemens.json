@@ -1,0 +1,37 @@
+{
+  "company_name": "Siemens AG",
+  "reporting_year": 2024,
+  "standards": ["DEGREE Framework", "GRI", "TCFD", "SASB", "SBTi"],
+  "framework_name": "DEGREE (Decarbonization, Ethics, Governance, Resource efficiency, Equity, Employability)",
+  "emissions_metric_tons_co2e": {
+    "scope_1_direct": 220500.0,
+    "scope_2_indirect_market": 220500.0,
+    "scope_3_value_chain": 416758000.0,
+    "total_ghg": 417199000.0,
+    "scope_1_and_2_combined_kt": 441.0,
+    "scope_3_kt": 416758.0,
+    "target_reduction_2030_pct": 90.0,
+    "achieved_reduction_yoy_pct": 66.0
+  },
+  "renewable_energy": {
+    "total_mwh_consumed": 2100000.0,
+    "renewable_mwh": 1764000.0,
+    "renewable_share_pct": 84.0,
+    "re100_committed": true
+  },
+  "water_and_waste": {
+    "total_water_withdrawal_m3": 4500000.0,
+    "water_recycled_pct": 52.0,
+    "waste_generated_tons": 280000.0,
+    "waste_diverted_from_landfill_pct": 88.0,
+    "robust_eco_design_revenue_pct": 54.0
+  },
+  "social_and_governance": {
+    "female_board_representation_pct": 32.6,
+    "gender_pay_equity_ratio": 0.99,
+    "independent_directors_pct": 85.0,
+    "supplier_code_of_conduct_signoff_pct": 99.0,
+    "customer_avoided_emissions_mt": 694.0,
+    "executive_comp_esg_link_pct": 20.0
+  }
+}
