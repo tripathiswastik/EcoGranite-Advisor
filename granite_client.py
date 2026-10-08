@@ -2,11 +2,15 @@
 IBM Granite Reasoning Client
 Supports both live API inference (via WatsonX AI or HuggingFace Inference API)
 and a deterministic offline Granite Rule-Based Reasoning Engine when API keys are not supplied.
+Exposes engine runtime metadata, catches and reports API errors, and generates structured cards.
 """
 
 import json
+import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+
+logger = logging.getLogger(__name__)
 
 
 class GraniteReasoningClient:
@@ -14,18 +18,47 @@ class GraniteReasoningClient:
         self.model_id = model_id
         self.api_key = os.getenv("WATSONX_APIKEY") or os.getenv("HUGGINGFACE_API_KEY")
         self.project_id = os.getenv("WATSONX_PROJECT_ID")
-        self.is_live = bool(self.api_key)
+        self.is_live = bool(self.api_key and self.project_id)
+        self.last_error: Optional[str] = None
+        self.last_reason: Optional[str] = None
+
+    def get_runtime_metadata(self) -> Dict[str, Any]:
+        """Provides runtime engine status and fallback reasons for transparency."""
+        if self.is_live and not self.last_error:
+            return {
+                "engine": "watsonx",
+                "label": "IBM WatsonX Live API",
+                "model_id": self.model_id,
+                "is_fallback": False,
+                "fallback_reason": None
+            }
+        else:
+            reason = self.last_reason or ("No WatsonX credentials supplied (WATSONX_APIKEY / WATSONX_PROJECT_ID)" if not self.is_live else "Inference error encountered")
+            return {
+                "engine": "local",
+                "label": "Local IBM Granite 3.0 Reasoning Engine",
+                "model_id": self.model_id,
+                "is_fallback": True,
+                "fallback_reason": reason,
+                "error": self.last_error
+            }
 
     def generate_esg_insights(self, audit_summary: Dict[str, Any]) -> str:
         """
         Sends structured audit findings to IBM Granite or uses local deterministic reasoning.
+        Captures and reports API failures without silently crashing.
         """
-        if self.is_live and self.project_id:
+        if self.is_live:
             try:
-                return self._call_watsonx_granite(audit_summary)
+                result = self._call_watsonx_granite(audit_summary)
+                self.last_error = None
+                self.last_reason = None
+                return result
             except Exception as e:
-                # Fallback to local deterministic reasoning
-                pass
+                logger.exception("WatsonX Granite inference failed")
+                self.last_error = str(e)
+                self.last_reason = f"WatsonX API Exception: {type(e).__name__} ({str(e)})"
+                # Fall through to local reasoning with clear diagnostic notice
 
         return self._local_granite_reasoning(audit_summary)
 
@@ -56,9 +89,10 @@ class GraniteReasoningClient:
         response = model.generate_text(prompt=prompt)
         return response
 
-    def generate_structured_recommendations(self, audit_summary: Dict[str, Any]) -> list:
+    def generate_structured_recommendations(self, audit_summary: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
         Derives structured decarbonization action items for UI card presentation.
+        Uses deterministic rule-based prioritization over observed disclosures.
         """
         metrics = audit_summary.get("metrics", {})
         benchmarks = audit_summary.get("benchmarks", {})
@@ -67,13 +101,12 @@ class GraniteReasoningClient:
         s1 = metrics.get("scope_1", 0.0)
         s2 = metrics.get("scope_2", 0.0)
         s3 = metrics.get("scope_3", 0.0)
-        tot_ghg = metrics.get("total_ghg", 0.0)
         ren_val = metrics.get("renewable_pct", 0.0)
         water_rec_pct = metrics.get("water_recycled_pct", 0.0)
 
         items = []
 
-        # Card 1: Value Chain
+        # Card 1: Value Chain / Operations
         if s3_pct > 50.0:
             items.append({
                 "pillar": "Supply Chain & Scope 3",
@@ -99,7 +132,7 @@ class GraniteReasoningClient:
             items.append({
                 "pillar": "Clean Power & Transition",
                 "title": "Close Renewable Electricity Deficit",
-                "metric": f"Currently {ren_val:.1f}% (target: ≥60.0%)",
+                "metric": f"Currently {ren_val:.1f}% (target: >=60.0%)",
                 "action": "Execute long-term Virtual Power Purchase Agreements (VPPAs) and on-site solar storage.",
                 "priority": "High Priority",
                 "badge_color": "#F59E0B"
@@ -149,7 +182,6 @@ class GraniteReasoningClient:
         s1 = metrics.get("scope_1", 0.0)
         s2 = metrics.get("scope_2", 0.0)
         s3 = metrics.get("scope_3", 0.0)
-        tot_ghg = metrics.get("total_ghg", 0.0)
 
         # Recommendation 1: Scope 3 Value Chain
         if s3_pct > 50.0:
@@ -191,5 +223,7 @@ class GraniteReasoningClient:
             )
 
         header = "STRATEGIC RECOMMENDATIONS (IBM Granite 3.0 Reasoning):\n"
-        return header + "\n".join(f"   {rec}" for rec in recommendations)
+        if self.last_error:
+            header = f"[Notice: WatsonX API offline ({self.last_reason}) — using local deterministic engine]\n" + header
 
+        return header + "\n".join(f"   {rec}" for rec in recommendations)

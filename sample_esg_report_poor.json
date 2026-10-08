@@ -1,0 +1,31 @@
+{
+  "company_name": "CarbonHeavy Mining & Power Corp.",
+  "reporting_year": 2024,
+  "standards": ["GRI", "SASB"],
+  "emissions_metric_tons_co2e": {
+    "scope_1_direct": 185000.0,
+    "scope_2_indirect_market": 94000.0,
+    "scope_3_value_chain": 210000.0,
+    "total_ghg": 489000.0,
+    "target_reduction_2030_pct": 20.0,
+    "achieved_reduction_yoy_pct": 1.2
+  },
+  "renewable_energy": {
+    "total_mwh_consumed": 350000.0,
+    "renewable_mwh": 63000.0,
+    "renewable_share_pct": 18.0,
+    "re100_committed": false
+  },
+  "water_and_waste": {
+    "total_water_withdrawal_m3": 890000.0,
+    "water_recycled_pct": 15.0,
+    "waste_generated_tons": 54000.0,
+    "waste_diverted_from_landfill_pct": 42.0
+  },
+  "social_and_governance": {
+    "female_board_representation_pct": 16.7,
+    "gender_pay_equity_ratio": 0.84,
+    "independent_directors_pct": 40.0,
+    "supplier_code_of_conduct_signoff_pct": 65.0
+  }
+}

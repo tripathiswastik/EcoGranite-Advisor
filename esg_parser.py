@@ -1,7 +1,7 @@
 """
-Docling Document Parser Module
+Docling Document Parser & ESG Data Normalization Engine
 Provides document conversion for PDF/Docx/JSON ESG reports into structured data.
-Supports native Docling conversion with graceful fallback and schema normalization.
+Enforces rigorous data reconciliation, validation warnings, and refusal on extraction failure.
 """
 
 import io
@@ -9,7 +9,7 @@ import json
 import logging
 import os
 import re
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +27,14 @@ def parse_document(file_source: Union[str, dict, io.IOBase, Any], filename: str 
     - If input is already a dictionary, normalizes and returns directly.
     - If input is a file path:
         - .json: loads and validates.
-        - .pdf / .docx: uses IBM Docling DocumentConverter (or graceful fallback).
+        - .pdf / .docx: uses IBM Docling DocumentConverter (or text extraction).
     - If input is a file-like stream (e.g., Streamlit UploadedFile), inspects extension and parses.
+    - If extraction fails to find required fields, returns an explicit extraction_failed result.
     """
     # 1. Direct dictionary input
     if isinstance(file_source, dict):
+        if file_source.get("status") == "extraction_failed":
+            return file_source
         return validate_and_normalize_esg(file_source)
 
     # 2. File-like object (e.g. Streamlit UploadedFile or BytesIO)
@@ -50,16 +53,25 @@ def parse_document(file_source: Union[str, dict, io.IOBase, Any], filename: str 
                 data = json.loads(content_str)
                 return validate_and_normalize_esg(data)
             except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON file uploaded: {str(e)}")
+                return {
+                    "status": "extraction_failed",
+                    "company_name": os.path.splitext(file_name)[0],
+                    "source_file": file_name,
+                    "errors": [f"Malformed JSON document: {str(e)}"]
+                }
         elif ext in (".pdf", ".docx"):
             return _parse_pdf_or_docx_bytes(content, file_name)
         else:
-            # Try parsing as JSON first
             try:
                 data = json.loads(content_str)
                 return validate_and_normalize_esg(data)
             except Exception:
-                raise ValueError(f"Unsupported file format '{ext}'. Expected .json, .pdf, or .docx")
+                return {
+                    "status": "extraction_failed",
+                    "company_name": os.path.splitext(file_name)[0],
+                    "source_file": file_name,
+                    "errors": [f"Unsupported file format '{ext}'. Expected .json, .pdf, or .docx"]
+                }
 
     # 3. String path
     if isinstance(file_source, str):
@@ -76,32 +88,43 @@ def parse_document(file_source: Union[str, dict, io.IOBase, Any], filename: str 
         elif ext in (".pdf", ".docx"):
             return _parse_pdf_or_docx_path(file_source)
         else:
-            raise ValueError(f"Unsupported file format '{ext}'. Supported: .json, .pdf, .docx")
+            return {
+                "status": "extraction_failed",
+                "company_name": os.path.basename(file_source),
+                "source_file": file_source,
+                "errors": [f"Unsupported file extension '{ext}'. Supported: .json, .pdf, .docx"]
+            }
 
     raise TypeError(f"Unsupported input type: {type(file_source)}")
 
 
 def _parse_pdf_or_docx_path(file_path: str) -> Dict[str, Any]:
-    """Parse PDF or DOCX from filesystem path."""
+    """Parse PDF or DOCX from filesystem path using Docling or structural extractor."""
     if DOCLING_AVAILABLE:
         try:
             converter = DocumentConverter()
             result = converter.convert(file_path)
-            doc_dict = result.document.export_to_dict()
-            logger.info("Successfully converted document via IBM Docling DocumentConverter")
-            return extract_esg_from_docling_dict(doc_dict)
+            markdown_text = result.document.export_to_markdown()
+            return extract_esg_from_text(markdown_text, os.path.basename(file_path))
         except Exception as e:
-            logger.warning(f"Docling conversion encountered error: {e}. Falling back to structural parser.")
+            logger.warning(f"Docling conversion encountered error: {e}")
+            return {
+                "status": "extraction_failed",
+                "company_name": os.path.splitext(os.path.basename(file_path))[0],
+                "source_file": file_path,
+                "errors": [f"IBM Docling extraction failed: {str(e)}"]
+            }
 
-    # Graceful fallback extraction
-    return _fallback_pdf_extraction(os.path.basename(file_path))
+    # Offline / Docling not installed: try basic text extraction or return extraction failure
+    return _extract_from_binary_stream(file_path, None)
 
 
 def _parse_pdf_or_docx_bytes(file_bytes: Union[bytes, str], file_name: str) -> Dict[str, Any]:
     """Parse PDF or DOCX from in-memory bytes."""
     if DOCLING_AVAILABLE:
+        import tempfile
+        tmp_path = None
         try:
-            import tempfile
             with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file_name)[1]) as tmp:
                 if isinstance(file_bytes, str):
                     tmp.write(file_bytes.encode("utf-8"))
@@ -109,100 +132,250 @@ def _parse_pdf_or_docx_bytes(file_bytes: Union[bytes, str], file_name: str) -> D
                     tmp.write(file_bytes)
                 tmp_path = tmp.name
 
-            try:
-                converter = DocumentConverter()
-                result = converter.convert(tmp_path)
-                doc_dict = result.document.export_to_dict()
-                return extract_esg_from_docling_dict(doc_dict)
-            finally:
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
+            converter = DocumentConverter()
+            result = converter.convert(tmp_path)
+            markdown_text = result.document.export_to_markdown()
+            return extract_esg_from_text(markdown_text, file_name)
         except Exception as e:
-            logger.warning(f"Docling conversion failed for bytes: {e}. Falling back to structural parser.")
+            logger.warning(f"Docling conversion failed for bytes: {e}")
+            return {
+                "status": "extraction_failed",
+                "company_name": os.path.splitext(file_name)[0],
+                "source_file": file_name,
+                "errors": [f"IBM Docling extraction failed: {str(e)}"]
+            }
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
 
-    return _fallback_pdf_extraction(file_name)
+    return _extract_from_binary_stream(None, file_bytes, file_name)
 
 
-def _fallback_pdf_extraction(file_name: str) -> Dict[str, Any]:
-    """Structural fallback when IBM Docling is in offline/sandbox mode."""
-    # Derive plausible company name from file name
-    clean_name = os.path.splitext(file_name)[0].replace("_", " ").replace("-", " ").title()
-    if not clean_name or clean_name.lower() in ("sample", "report", "disclosure"):
-        clean_name = "Global Industrial Corp (Extracted via Docling Telemetry)"
+def _extract_from_binary_stream(file_path: Optional[str], file_bytes: Optional[Union[bytes, str]], file_name: str = "document.pdf") -> Dict[str, Any]:
+    """Attempts regex extraction over raw text strings inside PDF, or reports missing fields."""
+    text_content = ""
+    target_name = file_name if file_path is None else os.path.basename(file_path)
 
-    return validate_and_normalize_esg({
-        "company_name": clean_name,
+    if file_bytes is not None:
+        if isinstance(file_bytes, bytes):
+            text_content = file_bytes.decode("utf-8", errors="ignore")
+        else:
+            text_content = str(file_bytes)
+    elif file_path is not None and os.path.exists(file_path):
+        with open(file_path, "rb") as f:
+            text_content = f.read().decode("utf-8", errors="ignore")
+
+    return extract_esg_from_text(text_content, target_name)
+
+
+def extract_esg_from_text(text: str, source_name: str) -> Dict[str, Any]:
+    """
+    Scans document text/markdown for actual ESG disclosures.
+    Refuses to invent numbers: if required disclosures are missing, reports extraction_failed.
+    """
+    clean_title = os.path.splitext(source_name)[0].replace("_", " ").replace("-", " ").title()
+
+    errors = []
+    extracted: Dict[str, Any] = {
+        "company_name": clean_title,
         "reporting_year": 2024,
-        "standards": ["GRI", "TCFD", "SASB"],
-        "emissions_metric_tons_co2e": {
-            "scope_1_direct": 14250.0,
-            "scope_2_indirect_market": 8940.0,
-            "scope_3_value_chain": 46300.0,
-            "total_ghg": 69490.0,
-            "target_reduction_2030_pct": 45.0,
-            "achieved_reduction_yoy_pct": 8.4
-        },
-        "renewable_energy": {
-            "total_mwh_consumed": 38400.0,
-            "renewable_mwh": 26880.0,
-            "renewable_share_pct": 70.0,
-            "re100_committed": True
-        },
-        "water_and_waste": {
-            "total_water_withdrawal_m3": 124000.0,
-            "water_recycled_pct": 42.0,
-            "waste_generated_tons": 3200.0,
-            "waste_diverted_from_landfill_pct": 86.5
-        },
-        "social_and_governance": {
-            "female_board_representation_pct": 44.0,
-            "gender_pay_equity_ratio": 0.98,
-            "independent_directors_pct": 80.0,
-            "supplier_code_of_conduct_signoff_pct": 98.2
+        "standards": ["GRI", "TCFD"],
+        "emissions_metric_tons_co2e": {},
+        "renewable_energy": {},
+        "water_and_waste": {},
+        "social_and_governance": {}
+    }
+
+    # 1. Company Name detection
+    comp_match = re.search(r"(?:Company|Entity|Corporation|Organization)\s*[:\-]\s*([^\n\r]+)", text, re.IGNORECASE)
+    if comp_match:
+        extracted["company_name"] = comp_match.group(1).strip()
+
+    # 2. Scope 1
+    s1_match = re.search(r"Scope\s*1(?:\s*\(Direct\))?\s*[:\-]?\s*([\d,\.]+)", text, re.IGNORECASE)
+    if s1_match:
+        extracted["emissions_metric_tons_co2e"]["scope_1_direct"] = float(s1_match.group(1).replace(",", ""))
+    else:
+        errors.append("Scope 1 direct GHG emissions could not be identified in disclosure text")
+
+    # 3. Scope 2
+    s2_match = re.search(r"Scope\s*2(?:\s*\(Indirect\))?\s*[:\-]?\s*([\d,\.]+)", text, re.IGNORECASE)
+    if s2_match:
+        extracted["emissions_metric_tons_co2e"]["scope_2_indirect_market"] = float(s2_match.group(1).replace(",", ""))
+    else:
+        errors.append("Scope 2 indirect GHG emissions could not be identified in disclosure text")
+
+    # 4. Scope 3
+    s3_match = re.search(r"Scope\s*3(?:\s*\(Value Chain\))?\s*[:\-]?\s*([\d,\.]+)", text, re.IGNORECASE)
+    if s3_match:
+        extracted["emissions_metric_tons_co2e"]["scope_3_value_chain"] = float(s3_match.group(1).replace(",", ""))
+
+    # 5. Renewable energy
+    ren_match = re.search(r"Renewable\s*(?:energy|electricity|share)?\s*[:\-]?\s*([\d\.]+)\s*%", text, re.IGNORECASE)
+    if ren_match:
+        extracted["renewable_energy"]["renewable_share_pct"] = float(ren_match.group(1))
+    else:
+        errors.append("Renewable energy share percentage could not be identified in disclosure text")
+
+    # If critical mandatory fields failed to extract, REFUSE to invent data!
+    if len(errors) >= 2 or ("scope_1_direct" not in extracted["emissions_metric_tons_co2e"] and "scope_2_indirect_market" not in extracted["emissions_metric_tons_co2e"]):
+        return {
+            "status": "extraction_failed",
+            "company_name": extracted["company_name"],
+            "source_file": source_name,
+            "errors": errors
         }
-    })
+
+    return validate_and_normalize_esg(extracted)
 
 
 def validate_and_normalize_esg(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Validates and normalizes raw ESG metrics with safe defaults and boundary integrity."""
+    """
+    Validates ESG metrics, performs GHG reconciliation (S1 + S2 + S3 vs reported total),
+    preserves source anomalies with validation warnings, and scores completeness.
+    """
     if not isinstance(data, dict):
         raise ValueError("Invalid ESG payload: expected JSON object.")
 
-    # Validate company identity
+    if data.get("status") == "extraction_failed":
+        return data
+
+    validation_warnings: List[str] = []
+    core_fields_evaluated = 0
+    core_fields_present = 0
+
+    def check_presence(val: Any) -> bool:
+        nonlocal core_fields_evaluated, core_fields_present
+        core_fields_evaluated += 1
+        if val is not None:
+            core_fields_present += 1
+            return True
+        return False
+
     company_name = data.get("company_name", "Unknown Entity")
     reporting_year = data.get("reporting_year", 2024)
 
-    # Emissions normalization
-    emissions = data.get("emissions_metric_tons_co2e", {})
-    s1 = max(0.0, float(emissions.get("scope_1_direct", 0.0)))
-    s2 = max(0.0, float(emissions.get("scope_2_indirect_market", 0.0)))
-    s3 = max(0.0, float(emissions.get("scope_3_value_chain", 0.0)))
-    reported_total = float(emissions.get("total_ghg", 0.0))
+    # ----------------------------------------------------
+    # Emissions & Reconciliation Analysis
+    # ----------------------------------------------------
+    emissions = data.get("emissions_metric_tons_co2e") or {}
+    s1_raw = emissions.get("scope_1_direct")
+    s2_raw = emissions.get("scope_2_indirect_market")
+    s3_raw = emissions.get("scope_3_value_chain")
+    rep_total_raw = emissions.get("total_ghg")
 
-    calc_total = s1 + s2 + s3
-    total_ghg = reported_total if reported_total > 0 else calc_total
+    check_presence(s1_raw)
+    check_presence(s2_raw)
+    check_presence(s3_raw)
+    check_presence(rep_total_raw)
 
-    # Energy
-    energy = data.get("renewable_energy", {})
-    tot_energy = max(0.0, float(energy.get("total_mwh_consumed", 0.0)))
-    ren_energy = max(0.0, float(energy.get("renewable_mwh", 0.0)))
-    ren_pct = float(energy.get("renewable_share_pct", (ren_energy / tot_energy * 100.0) if tot_energy > 0 else 0.0))
+    def parse_float_safe(val: Any, field_name: str) -> Optional[float]:
+        if val is None:
+            return None
+        try:
+            f = float(val)
+            if f < 0.0:
+                validation_warnings.append(f"{field_name} is negative ({f}); expected non-negative value.")
+            return f
+        except (ValueError, TypeError):
+            validation_warnings.append(f"{field_name} contains non-numeric value '{val}'.")
+            return None
 
-    # Waste & water
-    waste = data.get("water_and_waste", {})
-    water_withdrawn = max(0.0, float(waste.get("total_water_withdrawal_m3", 0.0)))
-    water_rec_pct = max(0.0, min(100.0, float(waste.get("water_recycled_pct", 0.0))))
-    waste_div = max(0.0, min(100.0, float(waste.get("waste_diverted_from_landfill_pct", 0.0))))
-    waste_gen = max(0.0, float(waste.get("waste_generated_tons", 0.0)))
+    s1 = parse_float_safe(s1_raw, "Scope 1")
+    s2 = parse_float_safe(s2_raw, "Scope 2")
+    s3 = parse_float_safe(s3_raw, "Scope 3")
+    reported_total = parse_float_safe(rep_total_raw, "Reported Total GHG")
 
-    # Governance
-    gov = data.get("social_and_governance", {})
-    board_div = max(0.0, min(100.0, float(gov.get("female_board_representation_pct", 0.0))))
-    indep_dir = max(0.0, min(100.0, float(gov.get("independent_directors_pct", 0.0))))
-    pay_equity = float(gov.get("gender_pay_equity_ratio", 1.0))
-    code_signoff = max(0.0, min(100.0, float(gov.get("supplier_code_of_conduct_signoff_pct", 0.0))))
+    # Scope sum calculation
+    s1_val = s1 if s1 is not None else 0.0
+    s2_val = s2 if s2 is not None else 0.0
+    s3_val = s3 if s3 is not None else 0.0
+    calc_total = s1_val + s2_val + s3_val
+
+    # Reconciliation check
+    reconciliation_status = "PASSED"
+    variance = 0.0
+
+    if reported_total is not None and (s1 is not None or s2 is not None or s3 is not None):
+        variance = abs(reported_total - calc_total)
+        tolerance = max(1.0, 0.01 * reported_total)
+        if variance > tolerance:
+            reconciliation_status = "FAILED"
+            validation_warnings.append(
+                f"GHG Protocol Mismatch: Reported total ({reported_total:,.1f} MT) does not reconcile "
+                f"with Scope 1+2+3 sum ({calc_total:,.1f} MT). Variance: {variance:,.1f} MT."
+            )
+
+    # Effective total GHG: if reconciliation failed or reported is missing, use calculated
+    effective_total = reported_total if (reported_total is not None and reconciliation_status == "PASSED") else calc_total
+
+    # Scope 3 exceeding total check
+    if s3 is not None and effective_total > 0 and s3 > effective_total:
+        validation_warnings.append(f"Scope 3 emissions ({s3:,.1f} MT) exceed total GHG ({effective_total:,.1f} MT).")
+
+    # Reduction target
+    target_red = parse_float_safe(emissions.get("target_reduction_2030_pct", 45.0), "2030 Target Reduction %")
+    achieved_yoy = parse_float_safe(emissions.get("achieved_reduction_yoy_pct"), "YoY Reduction %")
+    check_presence(achieved_yoy)
+
+    # ----------------------------------------------------
+    # Renewable Energy & Grid Mix
+    # ----------------------------------------------------
+    energy = data.get("renewable_energy") or {}
+    tot_energy = parse_float_safe(energy.get("total_mwh_consumed"), "Total MWh Consumed")
+    ren_energy = parse_float_safe(energy.get("renewable_mwh"), "Renewable MWh")
+    ren_pct_raw = energy.get("renewable_share_pct")
+    check_presence(ren_pct_raw)
+
+    if ren_pct_raw is not None:
+        ren_pct = parse_float_safe(ren_pct_raw, "Renewable Share %")
+    elif tot_energy and tot_energy > 0 and ren_energy is not None:
+        ren_pct = round((ren_energy / tot_energy) * 100.0, 2)
+    else:
+        ren_pct = None
+
+    if ren_pct is not None and (ren_pct < 0.0 or ren_pct > 100.0):
+        validation_warnings.append(f"Renewable share ({ren_pct}%) is outside valid 0-100% boundary.")
+
+    if tot_energy is not None and ren_energy is not None and ren_energy > tot_energy:
+        validation_warnings.append(f"Renewable energy ({ren_energy} MWh) exceeds total consumed ({tot_energy} MWh).")
+
+    # ----------------------------------------------------
+    # Water & Waste
+    # ----------------------------------------------------
+    waste = data.get("water_and_waste") or {}
+    water_withdrawn = parse_float_safe(waste.get("total_water_withdrawal_m3"), "Water Withdrawal")
+    water_rec_pct = parse_float_safe(waste.get("water_recycled_pct"), "Water Recycled %")
+    waste_div_pct = parse_float_safe(waste.get("waste_diverted_from_landfill_pct"), "Waste Diversion %")
+    check_presence(waste_div_pct)
+
+    if waste_div_pct is not None and (waste_div_pct < 0.0 or waste_div_pct > 100.0):
+        validation_warnings.append(f"Waste diversion ({waste_div_pct}%) is outside valid 0-100% boundary.")
+
+    if water_rec_pct is not None and (water_rec_pct < 0.0 or water_rec_pct > 100.0):
+        validation_warnings.append(f"Water recycling ({water_rec_pct}%) is outside valid 0-100% boundary.")
+
+    # ----------------------------------------------------
+    # Social & Governance
+    # ----------------------------------------------------
+    gov = data.get("social_and_governance") or {}
+    board_div = parse_float_safe(gov.get("female_board_representation_pct"), "Female Board Diversity %")
+    indep_dir = parse_float_safe(gov.get("independent_directors_pct"), "Independent Directors %")
+    pay_equity = parse_float_safe(gov.get("gender_pay_equity_ratio"), "Gender Pay Equity Ratio")
+    supplier_code = parse_float_safe(gov.get("supplier_code_of_conduct_signoff_pct"), "Supplier Code Sign-off %")
+    check_presence(board_div)
+
+    if board_div is not None and (board_div < 0.0 or board_div > 100.0):
+        validation_warnings.append(f"Board gender diversity ({board_div}%) was outside 0-100% range.")
+
+    if indep_dir is not None and (indep_dir < 0.0 or indep_dir > 100.0):
+        validation_warnings.append(f"Independent directors ({indep_dir}%) was outside 0-100% range.")
+
+    # Data completeness computation
+    completeness_pct = round((core_fields_present / core_fields_evaluated) * 100.0, 1) if core_fields_evaluated > 0 else 0.0
 
     return {
+        "status": "success",
         "company_name": company_name,
         "reporting_year": reporting_year,
         "standards": data.get("standards", ["GRI", "TCFD", "SASB"]),
@@ -210,10 +383,11 @@ def validate_and_normalize_esg(data: Dict[str, Any]) -> Dict[str, Any]:
             "scope_1_direct": s1,
             "scope_2_indirect_market": s2,
             "scope_3_value_chain": s3,
-            "total_ghg": total_ghg,
+            "total_ghg": effective_total,
+            "reported_total_ghg": reported_total,
             "calculated_total_ghg": calc_total,
-            "target_reduction_2030_pct": float(emissions.get("target_reduction_2030_pct", 45.0)),
-            "achieved_reduction_yoy_pct": float(emissions.get("achieved_reduction_yoy_pct", 0.0))
+            "target_reduction_2030_pct": target_red if target_red is not None else 45.0,
+            "achieved_reduction_yoy_pct": achieved_yoy
         },
         "renewable_energy": {
             "total_mwh_consumed": tot_energy,
@@ -224,22 +398,21 @@ def validate_and_normalize_esg(data: Dict[str, Any]) -> Dict[str, Any]:
         "water_and_waste": {
             "total_water_withdrawal_m3": water_withdrawn,
             "water_recycled_pct": water_rec_pct,
-            "waste_generated_tons": waste_gen,
-            "waste_diverted_from_landfill_pct": waste_div
+            "waste_generated_tons": parse_float_safe(waste.get("waste_generated_tons"), "Waste Generated"),
+            "waste_diverted_from_landfill_pct": waste_div_pct
         },
         "social_and_governance": {
             "female_board_representation_pct": board_div,
-            "gender_pay_equity_ratio": pay_equity,
-            "independent_directors_pct": indep_dir,
-            "supplier_code_of_conduct_signoff_pct": code_signoff
+            "gender_pay_equity_ratio": pay_equity if pay_equity is not None else 1.0,
+            "independent_directors_pct": indep_dir if indep_dir is not None else 0.0,
+            "supplier_code_of_conduct_signoff_pct": supplier_code if supplier_code is not None else 0.0
+        },
+        "data_quality": {
+            "completeness_pct": completeness_pct,
+            "reconciliation_status": reconciliation_status,
+            "reported_total_ghg": reported_total,
+            "calculated_total_ghg": calc_total,
+            "total_ghg_variance": variance,
+            "validation_warnings": validation_warnings
         }
     }
-
-
-def extract_esg_from_docling_dict(doc_dict: Dict[str, Any]) -> Dict[str, Any]:
-    """Helper to map Docling table/text nodes into structured ESG schema."""
-    title = doc_dict.get("metadata", {}).get("title", "Docling Extracted Corporate Report")
-    return validate_and_normalize_esg({
-        "company_name": title,
-        "reporting_year": 2024
-    })

@@ -1,0 +1,31 @@
+{
+  "company_name": "Incoherent Disclosures Ltd.",
+  "reporting_year": 2024,
+  "standards": ["GRI"],
+  "emissions_metric_tons_co2e": {
+    "scope_1_direct": 1000.0,
+    "scope_2_indirect_market": 1000.0,
+    "scope_3_value_chain": 1000.0,
+    "total_ghg": 25000.0,
+    "target_reduction_2030_pct": 30.0,
+    "achieved_reduction_yoy_pct": 3.0
+  },
+  "renewable_energy": {
+    "total_mwh_consumed": 30000.0,
+    "renewable_mwh": 50000.0,
+    "renewable_share_pct": 166.7,
+    "re100_committed": true
+  },
+  "water_and_waste": {
+    "total_water_withdrawal_m3": 50000.0,
+    "water_recycled_pct": 25.0,
+    "waste_generated_tons": 1200.0,
+    "waste_diverted_from_landfill_pct": 80.0
+  },
+  "social_and_governance": {
+    "female_board_representation_pct": 135.0,
+    "gender_pay_equity_ratio": 0.95,
+    "independent_directors_pct": 60.0,
+    "supplier_code_of_conduct_signoff_pct": 90.0
+  }
+}
