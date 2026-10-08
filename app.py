@@ -259,12 +259,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ==========================================
-# Cached Advisor Factory
-# ==========================================
-@st.cache_resource
 def get_advisor(model_id: str) -> EcoGraniteAdvisor:
-    """Instantiates and caches the EcoGraniteAdvisor instance."""
+    """Instantiates the EcoGraniteAdvisor instance."""
     return EcoGraniteAdvisor(model_id=model_id)
 
 
@@ -774,7 +770,13 @@ with tab_granite:
 
     # 8-Step Decarbonization Workflow Stepper
     with st.expander("🧭 EcoGranite 8-Step Enterprise Decarbonization Workflow (Interactive Stepper)"):
-        eight_steps = advisor.get_eight_step_roadmap()
+        if hasattr(advisor, "get_eight_step_roadmap"):
+            eight_steps = advisor.get_eight_step_roadmap()
+        elif hasattr(advisor, "granite_client") and hasattr(advisor.granite_client, "get_eight_step_roadmap"):
+            eight_steps = advisor.granite_client.get_eight_step_roadmap()
+        else:
+            from granite_client import GraniteReasoningClient
+            eight_steps = GraniteReasoningClient().get_eight_step_roadmap()
         for s in eight_steps:
             st.markdown(f"""
             <div class="step-box">
