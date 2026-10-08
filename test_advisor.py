@@ -169,6 +169,14 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
         report = self.advisor.generate_audit_report(extracted, analysis)
         self.assertIn("AUDIT REFUSAL (EXTRACTION FAILED)", report)
 
+    def test_pdf_binary_stream_refusal(self):
+        """Binary PDF bytes with no decompressed text must cleanly fail without naive UTF-8 regex fallback."""
+        fake_binary_pdf = io.BytesIO(b"%PDF-1.4\x00\x01\x02fake_binary_stream\xff\xfe")
+        fake_binary_pdf.name = "unreadable_report.pdf"
+        extracted = self.advisor.load_document(fake_binary_pdf)
+        self.assertEqual(extracted["status"], "extraction_failed")
+        self.assertTrue(any("PDF extraction failed" in err for err in extracted["errors"]))
+
     # =========================================================================
     # 6. Dynamic Scope 3 Percentage Derivation
     # =========================================================================

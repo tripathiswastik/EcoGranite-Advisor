@@ -20,6 +20,17 @@ try:
 except ImportError:
     DOCLING_AVAILABLE = False
 
+# Check for PyPDF2 / pypdf fallback (proper PDF stream decompression)
+try:
+    import PyPDF2
+    PDF_PARSER_AVAILABLE = True
+except ImportError:
+    try:
+        import pypdf as PyPDF2
+        PDF_PARSER_AVAILABLE = True
+    except Exception:
+        PDF_PARSER_AVAILABLE = False
+
 
 def parse_document(file_source: Union[str, dict, io.IOBase, Any], filename: str = None) -> Dict[str, Any]:
     """
@@ -98,38 +109,71 @@ def parse_document(file_source: Union[str, dict, io.IOBase, Any], filename: str 
     raise TypeError(f"Unsupported input type: {type(file_source)}")
 
 
-def _parse_pdf_or_docx_path(file_path: str) -> Dict[str, Any]:
-    """Parse PDF or DOCX from filesystem path using Docling or structural extractor."""
-    if DOCLING_AVAILABLE:
-        try:
-            converter = DocumentConverter()
-            result = converter.convert(file_path)
-            markdown_text = result.document.export_to_markdown()
-            return extract_esg_from_text(markdown_text, os.path.basename(file_path))
-        except Exception as e:
-            logger.warning(f"Docling conversion encountered error: {e}")
-            return {
-                "status": "extraction_failed",
-                "company_name": os.path.splitext(os.path.basename(file_path))[0],
-                "source_file": file_path,
-                "errors": [f"IBM Docling extraction failed: {str(e)}"]
-            }
+def _extract_text_from_pdf_stream(stream: io.BytesIO) -> str:
+    """Extracts text from decompressed PDF page stream objects using PyPDF2."""
+    if not PDF_PARSER_AVAILABLE:
+        return ""
+    try:
+        reader = PyPDF2.PdfReader(stream)
+        pages_text = []
+        for page in reader.pages:
+            t = page.extract_text()
+            if t:
+                pages_text.append(t)
+        return "\n".join(pages_text)
+    except Exception as e:
+        logger.warning(f"PDF stream decompression error: {e}")
+        return ""
 
-    # Offline / Docling not installed: try basic text extraction or return extraction failure
-    return _extract_from_binary_stream(file_path, None)
+
+def _extract_text_from_docx_stream(stream: io.BytesIO) -> str:
+    """Extracts text paragraphs and table cells from DOCX using standard library zipfile & XML."""
+    import zipfile
+    import xml.etree.ElementTree as ET
+    try:
+        with zipfile.ZipFile(stream) as docx:
+            if "word/document.xml" not in docx.namelist():
+                return ""
+            xml_content = docx.read("word/document.xml")
+        root = ET.fromstring(xml_content)
+        ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+        paragraphs = []
+        for p in root.iter(f"{{{ns['w']}}}p"):
+            texts = [node.text for node in p.iter(f"{{{ns['w']}}}t") if node.text]
+            if texts:
+                paragraphs.append("".join(texts))
+        return "\n".join(paragraphs)
+    except Exception as e:
+        logger.warning(f"DOCX archive decompression error: {e}")
+        return ""
+
+
+def _parse_pdf_or_docx_path(file_path: str) -> Dict[str, Any]:
+    """Parse PDF or DOCX from filesystem path using Docling, PyPDF2, or DOCX XML extractor."""
+    with open(file_path, "rb") as f:
+        file_bytes = f.read()
+    return _parse_pdf_or_docx_bytes(file_bytes, os.path.basename(file_path))
 
 
 def _parse_pdf_or_docx_bytes(file_bytes: Union[bytes, str], file_name: str) -> Dict[str, Any]:
-    """Parse PDF or DOCX from in-memory bytes."""
+    """
+    Parse PDF or DOCX using:
+    1. IBM Docling (Primary deep multi-modal layout & table vision pipeline)
+    2. Stream Decompressor (PyPDF2 for PDF streams, zipfile/XML for DOCX)
+    3. Refusal with clear diagnostics if document streams cannot be decompressed
+    """
+    if isinstance(file_bytes, str):
+        file_bytes = file_bytes.encode("utf-8")
+    ext = os.path.splitext(file_name)[1].lower()
+    clean_title = os.path.splitext(file_name)[0].replace("_", " ").replace("-", " ").title()
+
+    # Path 1: Primary IBM Docling Pipeline
     if DOCLING_AVAILABLE:
         import tempfile
         tmp_path = None
         try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file_name)[1]) as tmp:
-                if isinstance(file_bytes, str):
-                    tmp.write(file_bytes.encode("utf-8"))
-                else:
-                    tmp.write(file_bytes)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                tmp.write(file_bytes)
                 tmp_path = tmp.name
 
             converter = DocumentConverter()
@@ -137,35 +181,52 @@ def _parse_pdf_or_docx_bytes(file_bytes: Union[bytes, str], file_name: str) -> D
             markdown_text = result.document.export_to_markdown()
             return extract_esg_from_text(markdown_text, file_name)
         except Exception as e:
-            logger.warning(f"Docling conversion failed for bytes: {e}")
-            return {
-                "status": "extraction_failed",
-                "company_name": os.path.splitext(file_name)[0],
-                "source_file": file_name,
-                "errors": [f"IBM Docling extraction failed: {str(e)}"]
-            }
+            logger.warning(f"Docling conversion encountered error: {e}")
         finally:
             if tmp_path and os.path.exists(tmp_path):
-                os.unlink(tmp_path)
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
-    return _extract_from_binary_stream(None, file_bytes, file_name)
+    # Path 2: Decompressed Stream Extraction (No raw binary decoding!)
+    stream = io.BytesIO(file_bytes)
+    extracted_text = ""
 
+    if ext == ".pdf":
+        extracted_text = _extract_text_from_pdf_stream(stream)
+        if not extracted_text.strip():
+            return {
+                "status": "extraction_failed",
+                "company_name": clean_title,
+                "source_file": file_name,
+                "errors": [
+                    "PDF extraction failed: Could not decompress textual content from PDF streams. "
+                    "Corporate PDF reports with FlateDecode compressed streams or complex tables "
+                    "require IBM Docling ('pip install docling') or PyPDF2 ('pip install pypdf2')."
+                ]
+            }
+    elif ext == ".docx":
+        extracted_text = _extract_text_from_docx_stream(stream)
+        if not extracted_text.strip():
+            return {
+                "status": "extraction_failed",
+                "company_name": clean_title,
+                "source_file": file_name,
+                "errors": [
+                    "DOCX extraction failed: Could not read 'word/document.xml' from archive. "
+                    "File may be corrupted, encrypted, or not a valid Word document."
+                ]
+            }
+    else:
+        return {
+            "status": "extraction_failed",
+            "company_name": clean_title,
+            "source_file": file_name,
+            "errors": [f"Unsupported file format '{ext}'. Expected .pdf, .docx, or .json."]
+        }
 
-def _extract_from_binary_stream(file_path: Optional[str], file_bytes: Optional[Union[bytes, str]], file_name: str = "document.pdf") -> Dict[str, Any]:
-    """Attempts regex extraction over raw text strings inside PDF, or reports missing fields."""
-    text_content = ""
-    target_name = file_name if file_path is None else os.path.basename(file_path)
-
-    if file_bytes is not None:
-        if isinstance(file_bytes, bytes):
-            text_content = file_bytes.decode("utf-8", errors="ignore")
-        else:
-            text_content = str(file_bytes)
-    elif file_path is not None and os.path.exists(file_path):
-        with open(file_path, "rb") as f:
-            text_content = f.read().decode("utf-8", errors="ignore")
-
-    return extract_esg_from_text(text_content, target_name)
+    return extract_esg_from_text(extracted_text, file_name)
 
 
 def extract_esg_from_text(text: str, source_name: str) -> Dict[str, Any]:
