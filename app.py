@@ -1,5 +1,5 @@
 """
-EcoGranite-Advisor: Streamlit ESG Compliance & Decarbonization Dashboard
+EcoGranite-Advisor: High-Fidelity ESG Compliance & Decarbonization Dashboard
 Autonomous Corporate Sustainability & Decarbonization Audit Engine.
 Powered by IBM Granite 3.0 Reasoning & IBM Docling Document Parsing.
 """
@@ -23,7 +23,9 @@ except ImportError as e:
 from advisor_engine import EcoGraniteAdvisor
 from esg_parser import parse_document, DOCLING_AVAILABLE
 
+# ==========================================
 # Page Configuration
+# ==========================================
 st.set_page_config(
     page_title="EcoGranite-Advisor | ESG Sustainability Auditor",
     page_icon="🌍",
@@ -31,72 +33,227 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Premium Theme & Custom CSS
+# ==========================================
+# High-End Design System & Custom CSS
+# ==========================================
 st.markdown("""
 <style>
-    /* Main typography & headers */
-    .main-header {
-        font-size: 2.2rem;
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap');
+
+    /* Global Typography */
+    html, body, [class*="css"] {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #0F172A;
+    }
+
+    /* Gradient Header Typography */
+    .hero-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2.35rem;
         font-weight: 800;
-        color: #1E3A8A;
-        letter-spacing: -0.5px;
+        letter-spacing: -0.7px;
+        background: linear-gradient(135deg, #0F172A 0%, #1E40AF 50%, #059669 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         margin-bottom: 0.2rem;
-    }
-    .sub-header {
-        font-size: 1.05rem;
-        color: #4B5563;
-        margin-bottom: 1.2rem;
-        line-height: 1.4;
-    }
-    
-    /* Engine status pill */
-    .engine-badge {
         display: inline-block;
-        background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
-        color: white;
+    }
+
+    .hero-subtitle {
+        font-size: 1.05rem;
+        font-weight: 500;
+        color: #475569;
+        margin-bottom: 1.4rem;
+        line-height: 1.5;
+    }
+
+    /* Engine Status Badges */
+    .badge-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
         padding: 4px 12px;
         border-radius: 9999px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        margin-left: 8px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
         vertical-align: middle;
+        margin-left: 8px;
     }
 
-    .recon-pass {
-        color: #059669;
-        font-weight: bold;
+    .badge-granite {
+        background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
+        color: #FFFFFF;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
     }
 
-    .recon-fail {
-        color: #DC2626;
-        font-weight: bold;
+    .badge-refusal {
+        background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%);
+        color: #FFFFFF;
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
     }
-    
-    /* Roadmap recommendation card */
-    .rec-card {
-        background: #F8FAFC;
+
+    /* Luxury Glassmorphic KPI Cards */
+    .kpi-container {
+        background: #FFFFFF;
         border: 1px solid #E2E8F0;
-        border-radius: 10px;
-        padding: 1.2rem;
-        margin-bottom: 1rem;
-        border-left: 4px solid #3B82F6;
+        border-radius: 16px;
+        padding: 1.25rem 1.1rem;
+        box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
     }
-    .rec-title {
-        font-size: 1.05rem;
+
+    .kpi-container:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.09), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+        border-color: #CBD5E1;
+    }
+
+    .kpi-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .kpi-label {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #64748B;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .kpi-icon {
+        font-size: 1.25rem;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: #F1F5F9;
+    }
+
+    .kpi-value {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.85rem;
+        font-weight: 800;
+        color: #0F172A;
+        letter-spacing: -0.5px;
+        line-height: 1.1;
+        margin-bottom: 0.4rem;
+    }
+
+    .kpi-sub {
+        font-size: 0.82rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 6px;
+    }
+
+    .kpi-sub-positive {
+        background: #ECFDF5;
+        color: #059669;
+    }
+
+    .kpi-sub-negative {
+        background: #FEF2F2;
+        color: #DC2626;
+    }
+
+    .kpi-sub-neutral {
+        background: #F8FAFC;
+        color: #475569;
+    }
+
+    /* Recommendation Cards */
+    .rec-card-modern {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 14px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        border-left: 5px solid #3B82F6;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        transition: transform 0.15s ease;
+    }
+
+    .rec-card-modern:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+    }
+
+    .rec-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.4rem;
+    }
+
+    .rec-badge-pillar {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 3px 8px;
+        border-radius: 6px;
+    }
+
+    .rec-card-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.12rem;
         font-weight: 700;
         color: #0F172A;
-        margin-bottom: 0.3rem;
+        margin-bottom: 0.35rem;
     }
-    .rec-metric {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: #475569;
-        margin-bottom: 0.3rem;
+
+    .rec-meta-box {
+        font-size: 0.88rem;
+        color: #334155;
+        background: #F8FAFC;
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        border: 1px solid #F1F5F9;
     }
-    .rec-action {
-        font-size: 0.95rem;
+
+    .rec-action-text {
+        font-size: 0.93rem;
         color: #1E293B;
-        line-height: 1.4;
+        line-height: 1.5;
+    }
+
+    /* Stepper Workflow */
+    .step-box {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 0.6rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .step-num-pill {
+        background: linear-gradient(135deg, #1E40AF, #3B82F6);
+        color: white;
+        font-weight: 800;
+        font-size: 0.85rem;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -197,10 +354,10 @@ with st.sidebar:
 analysis = advisor.analyze_compliance(raw_data)
 
 if not analysis.get("can_audit", True):
-    # REFUSAL STATE: Do NOT show fake scores or invented numbers!
+    # REFUSAL STATE: Refuse to invent fake numbers!
     st.markdown(
-        f"<div class='main-header'>EcoGranite-Advisor: ESG Compliance Dashboard"
-        f"<span class='engine-badge' style='background:#DC2626;'>Audit Refused</span></div>",
+        f"<div class='hero-title'>EcoGranite-Advisor</div>"
+        f"<span class='badge-pill badge-refusal'>Audit Refused</span>",
         unsafe_allow_html=True
     )
     st.error("🚨 **Pre-Audit Extraction Refusal**: The ingested document does not contain readable statutory ESG disclosures.")
@@ -230,102 +387,129 @@ score = analysis["esg_readiness_score"]
 rating_tier = analysis["rating_tier"]
 dq = analysis.get("data_quality", {})
 
-# Dynamic Header
+# Header
 st.markdown(
-    f"<div class='main-header'>EcoGranite-Advisor: ESG Sustainability Auditor"
-    f"<span class='engine-badge'>Granite 3.0 Powered</span></div>",
+    f"<div class='hero-title'>EcoGranite-Advisor: ESG Sustainability Auditor</div>"
+    f"<span class='badge-pill badge-granite'>Granite 3.0 Reasoning</span>",
     unsafe_allow_html=True
 )
 st.markdown(
-    f"<div class='sub-header'>Corporate Sustainability & Decarbonization Audit Engine | "
+    f"<div class='hero-subtitle'>Corporate Sustainability & Decarbonization Audit Engine | "
     f"<b>{company_name}</b> (FY {reporting_year}) — Frameworks: {', '.join(standards_list)}</div>",
     unsafe_allow_html=True
 )
 
-# Data Quality & Reconciliation Notice Banner
+# Reconciliation Failure Banner
 recon_status = dq.get("reconciliation_status", "UNKNOWN")
 if recon_status != "PASSED":
     st.error(
         f"🚨 **Data Reconciliation Failure**: Scope 1+2+3 sum ({dq.get('calculated_total_ghg', 0):,.1f} MT) "
-        f"does not match reported total GHG ({dq.get('reported_total_ghg', 0):,.1f} MT). "
+        f"does not reconcile with reported total GHG ({dq.get('reported_total_ghg', 0):,.1f} MT). "
         f"Variance: **{dq.get('total_ghg_variance', 0):,.1f} MT**. Rating disqualified from leader tier."
     )
 elif dq.get("validation_warnings"):
-    st.warning(f"⚠️ **Data Quality Notice**: {len(dq['validation_warnings'])} disclosure warning(s) detected. See Data Quality tab.")
+    st.warning(f"⚠️ **Data Quality Notice**: {len(dq['validation_warnings'])} disclosure warning(s) detected. See Data Quality diagnostics.")
 
 # ==========================================
-# KPI Header Cards (4 Pillars)
+# Luxury Glassmorphic KPI Row
 # ==========================================
-kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+k1, k2, k3, k4 = st.columns(4)
 
-with kpi1:
-    st.metric(
-        label="Sustainability Readiness",
-        value=f"{score:.1f} / 100",
-        delta=rating_tier,
-        delta_color="normal" if "EXCELLENT" in rating_tier or "GOOD" in rating_tier else "inverse"
-    )
+with k1:
+    is_leader = "EXCELLENT" in rating_tier or "GOOD" in rating_tier
+    st.markdown(f"""
+    <div class="kpi-container">
+        <div class="kpi-top">
+            <span class="kpi-label">Readiness Score</span>
+            <span class="kpi-icon">🎯</span>
+        </div>
+        <div class="kpi-value">{score:.1f}<span style="font-size:1.1rem; color:#94A3B8;"> / 100</span></div>
+        <span class="kpi-sub {'kpi-sub-positive' if is_leader else 'kpi-sub-negative'}">
+            {rating_tier.split(']')[0] + ']' if ']' in rating_tier else rating_tier}
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
-with kpi2:
+with k2:
     yoy_val = m.get("achieved_yoy_pct", 0.0)
-    st.metric(
-        label="Total Carbon Footprint",
-        value=f"{m['total_ghg']:,.0f} MT CO2e",
-        delta=f"-{yoy_val:.1f}% YoY Reduction" if yoy_val > 0 else f"{yoy_val:.1f}% YoY",
-        delta_color="normal" if yoy_val >= 5.0 else "inverse"
-    )
+    is_yoy_good = yoy_val >= 5.0
+    st.markdown(f"""
+    <div class="kpi-container">
+        <div class="kpi-top">
+            <span class="kpi-label">Total Footprint</span>
+            <span class="kpi-icon">🏭</span>
+        </div>
+        <div class="kpi-value">{m['total_ghg']:,.0f}<span style="font-size:1.1rem; color:#94A3B8;"> MT</span></div>
+        <span class="kpi-sub {'kpi-sub-positive' if is_yoy_good else 'kpi-sub-negative'}">
+            {'-' if yoy_val > 0 else ''}{yoy_val:.1f}% YoY Reduction
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
-with kpi3:
+with k3:
     ren_val = m.get("renewable_pct", 0.0)
-    pledge_status = "RE100 Pledged" if m.get("re100_committed") else "No RE100 Pledge"
-    st.metric(
-        label="Renewable Electricity",
-        value=f"{ren_val:.1f}%",
-        delta=pledge_status,
-        delta_color="normal" if m.get("re100_committed") else "off"
-    )
+    is_re100 = m.get("re100_committed", False)
+    st.markdown(f"""
+    <div class="kpi-container">
+        <div class="kpi-top">
+            <span class="kpi-label">Clean Energy</span>
+            <span class="kpi-icon">⚡</span>
+        </div>
+        <div class="kpi-value">{ren_val:.1f}%</div>
+        <span class="kpi-sub {'kpi-sub-positive' if is_re100 else 'kpi-sub-neutral'}">
+            {'RE100 Pledged' if is_re100 else 'No RE100 Pledge'}
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
-with kpi4:
+with k4:
     div_val = m.get("waste_diverted_pct", 0.0)
     target_diff = div_val - 75.0
-    st.metric(
-        label="Waste Landfill Diversion",
-        value=f"{div_val:.1f}%",
-        delta=f"{target_diff:+.1f}% vs 75% Target",
-        delta_color="normal" if target_diff >= 0 else "inverse"
-    )
+    is_div_good = target_diff >= 0
+    st.markdown(f"""
+    <div class="kpi-container">
+        <div class="kpi-top">
+            <span class="kpi-label">Waste Diversion</span>
+            <span class="kpi-icon">♻️</span>
+        </div>
+        <div class="kpi-value">{div_val:.1f}%</div>
+        <span class="kpi-sub {'kpi-sub-positive' if is_div_good else 'kpi-sub-negative'}">
+            {target_diff:+.1f}% vs 75% Target
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
-st.markdown("---")
+st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
 # ==========================================
 # Main Navigation Tabs
 # ==========================================
 tab_exec, tab_ghg, tab_resources, tab_granite = st.tabs([
-    "📊 Executive Scorecard & Pillars",
-    "🏭 GHG Scope 1–3 Breakdown",
-    "🌿 Resources & Governance",
+    "📊 Executive Scorecard & 4-Pillar Radar",
+    "🏭 GHG Protocol Scope 1–3 Waterfall",
+    "🌿 Resources & Governance Analytics",
     "🤖 IBM Granite Strategic Roadmap"
 ])
 
 # ------------------------------------------
-# TAB 1: Executive Scorecard & Pillars
+# TAB 1: Executive Scorecard & Radar Chart
 # ------------------------------------------
 with tab_exec:
     st.subheader("Statutory Compliance & 4-Pillar Scoring")
-    st.caption("Comprehensive ESG scoring across Environmental (60), Social (15), Governance (15), and Data Quality (10).")
+    st.caption("Proportional ESG audit scoring across Environmental (60 pts), Social (15 pts), Governance (15 pts), and Data Quality (10 pts).")
 
-    col_gauge, col_bench = st.columns([1, 1])
+    col_chart_left, col_chart_right = st.columns([1, 1])
 
-    with col_gauge:
-        # Dynamic Gauge Chart
+    with col_chart_left:
+        # Metallic Gauge Chart
         gauge_color = "#10B981" if ("EXCELLENT" in rating_tier) else ("#3B82F6" if ("GOOD" in rating_tier) else ("#F59E0B" if score >= 50.0 else "#EF4444"))
         fig_gauge = go.Figure(go.Indicator(
             mode="gauge+number",
             value=score,
             domain={'x': [0, 1], 'y': [0, 1]},
-            title={'text': "Composite Readiness (0-100)", 'font': {'size': 18, 'color': '#1E3A8A'}},
+            title={'text': "Composite Readiness (0-100)", 'font': {'size': 18, 'color': '#1E3A8A', 'family': 'Outfit'}},
             gauge={
-                'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#475569"},
+                'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#94A3B8"},
                 'bar': {'color': gauge_color, 'thickness': 0.28},
                 'steps': [
                     {'range': [0, 50], 'color': '#FEE2E2'},
@@ -340,100 +524,139 @@ with tab_exec:
                 }
             }
         ))
-        fig_gauge.update_layout(height=320, margin=dict(l=20, r=20, t=50, b=20))
+        fig_gauge.update_layout(
+            height=300,
+            margin=dict(l=20, r=20, t=40, b=20),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
+        )
         st.plotly_chart(fig_gauge, use_container_width=True)
 
-        # Pillar breakdown metrics
-        st.markdown("#### Pillar Breakdown")
-        p_c1, p_c2, p_c3, p_c4 = st.columns(4)
-        with p_c1:
-            st.metric("Environmental", f"{pillars.get('environmental', {}).get('score', 0)} / 60")
-        with p_c2:
-            st.metric("Social", f"{pillars.get('social', {}).get('score', 0)} / 15")
-        with p_c3:
-            st.metric("Governance", f"{pillars.get('governance', {}).get('score', 0)} / 15")
-        with p_c4:
-            st.metric("Data Quality", f"{pillars.get('data_quality', {}).get('score', 0)} / 10")
+    with col_chart_right:
+        # 4-Pillar Radar / Polar Chart
+        env_pct = (pillars.get('environmental', {}).get('score', 0) / 60.0) * 100
+        soc_pct = (pillars.get('social', {}).get('score', 0) / 15.0) * 100
+        gov_pct = (pillars.get('governance', {}).get('score', 0) / 15.0) * 100
+        dq_pct = (pillars.get('data_quality', {}).get('score', 0) / 10.0) * 100
 
-    with col_bench:
-        st.markdown("### Statutory Benchmark Breakdown")
-        bench_rows = []
-        for metric_name, d in benchmarks.items():
-            bench_rows.append({
-                "Pillar": d.get("pillar", "General"),
-                "Indicator": metric_name,
-                "Achieved": d["value"],
-                "Variance": d["variance"],
-                "Score": d["score"],
-                "Audit Status": d["status"],
-                "Risk": d["risk"]
-            })
-        df_bench = pd.DataFrame(bench_rows)
-        try:
-            st.dataframe(df_bench, use_container_width=True, hide_index=True)
-        except TypeError:
-            st.dataframe(df_bench, use_container_width=True)
+        categories = ['Environmental (60 pts)', 'Social (15 pts)', 'Governance (15 pts)', 'Data Quality (10 pts)']
+        values = [env_pct, soc_pct, gov_pct, dq_pct]
+
+        fig_radar = go.Figure()
+        fig_radar.add_trace(go.Scatterpolar(
+            r=values + [values[0]],
+            theta=categories + [categories[0]],
+            fill='toself',
+            fillcolor='rgba(59, 130, 246, 0.2)',
+            line=dict(color='#2563EB', width=2),
+            name='Audited Entity'
+        ))
+        fig_radar.add_trace(go.Scatterpolar(
+            r=[80, 80, 80, 80, 80],
+            theta=categories + [categories[0]],
+            mode='lines',
+            line=dict(color='#10B981', width=1.5, dash='dash'),
+            name='Leader Benchmark (80%)'
+        ))
+        fig_radar.update_layout(
+            polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+            showlegend=True,
+            height=300,
+            margin=dict(l=30, r=30, t=30, b=30),
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
+        st.plotly_chart(fig_radar, use_container_width=True)
+
+    # Benchmark Audit Table
+    st.markdown("### Statutory Benchmark Compliance Matrix")
+    bench_rows = []
+    for metric_name, d in benchmarks.items():
+        bench_rows.append({
+            "Pillar": d.get("pillar", "General"),
+            "Indicator": metric_name,
+            "Achieved Value": d["value"],
+            "Variance": d["variance"],
+            "Weighted Score": d["score"],
+            "Compliance Status": d["status"],
+            "Risk Rating": d["risk"]
+        })
+    df_bench = pd.DataFrame(bench_rows)
+    try:
+        st.dataframe(df_bench, use_container_width=True, hide_index=True)
+    except TypeError:
+        st.dataframe(df_bench, use_container_width=True)
 
 # ------------------------------------------
-# TAB 2: GHG Scope 1-3 Footprint Analysis
+# TAB 2: GHG Scope 1-3 Waterfall & Analytics
 # ------------------------------------------
 with tab_ghg:
-    st.subheader("Greenhouse Gas (GHG) Protocol Scope 1–3 Analysis")
-    st.caption("Emissions reconciliation and value chain footprint assessment.")
+    st.subheader("Greenhouse Gas Protocol Scope 1–3 Architecture")
+    st.caption("Operational boundary accounting from direct fuel combustion through upstream and downstream supply chains.")
 
     s1 = m["scope_1"]
     s2 = m["scope_2"]
     s3 = m["scope_3"]
     tot_ghg = m["total_ghg"]
 
-    col_donut, col_bar = st.columns([1, 1])
+    col_wf, col_pie = st.columns([1.1, 0.9])
 
-    df_scopes = pd.DataFrame({
-        "Scope Category": ["Scope 1 (Direct Operations)", "Scope 2 (Electricity)", "Scope 3 (Value Chain)"],
-        "MT CO2e": [s1, s2, s3],
-        "Percentage": [
-            (s1 / tot_ghg * 100) if tot_ghg > 0 else 0,
-            (s2 / tot_ghg * 100) if tot_ghg > 0 else 0,
-            (s3 / tot_ghg * 100) if tot_ghg > 0 else 0
-        ]
-    })
+    with col_wf:
+        # Plotly Waterfall Chart
+        fig_waterfall = go.Figure(go.Waterfall(
+            name="GHG Protocol Accounting",
+            orientation="v",
+            measure=["relative", "relative", "relative", "total"],
+            x=["Scope 1 (Direct)", "Scope 2 (Electricity)", "Scope 3 (Value Chain)", "Total Corporate Footprint"],
+            y=[s1, s2, s3, 0],
+            text=[f"{s1:,.0f} MT", f"{s2:,.0f} MT", f"{s3:,.0f} MT", f"{tot_ghg:,.0f} MT"],
+            textposition="outside",
+            connector={"line": {"color": "#94A3B8"}},
+            decreasing={"marker": {"color": "#10B981"}},
+            increasing={"marker": {"color": "#3B82F6"}},
+            totals={"marker": {"color": "#1E3A8A"}}
+        ))
+        fig_waterfall.update_layout(
+            title="Scope 1–3 Cumulative Footprint Waterfall (MT CO2e)",
+            height=360,
+            margin=dict(l=20, r=20, t=50, b=20),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
+        )
+        st.plotly_chart(fig_waterfall, use_container_width=True)
 
-    with col_donut:
+    with col_pie:
+        # Interactive Hole Donut Chart
+        df_scopes = pd.DataFrame({
+            "Scope": ["Scope 1 (Direct)", "Scope 2 (Electricity)", "Scope 3 (Value Chain)"],
+            "MT CO2e": [s1, s2, s3]
+        })
         fig_donut = px.pie(
             df_scopes,
             values="MT CO2e",
-            names="Scope Category",
-            title="Carbon Footprint Distribution by Scope",
-            hole=0.45,
+            names="Scope",
+            title="Carbon Share by Scope",
+            hole=0.55,
             color_discrete_sequence=["#1E40AF", "#3B82F6", "#F59E0B"]
         )
         fig_donut.update_traces(textposition='inside', textinfo='percent+label')
-        fig_donut.update_layout(height=340, margin=dict(l=20, r=20, t=50, b=20), showlegend=False)
+        fig_donut.update_layout(
+            height=360,
+            margin=dict(l=20, r=20, t=50, b=20),
+            showlegend=False,
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
         st.plotly_chart(fig_donut, use_container_width=True)
 
-    with col_bar:
-        fig_bar = px.bar(
-            df_scopes,
-            x="Scope Category",
-            y="MT CO2e",
-            text_auto=',.0f',
-            title="Absolute Emissions Breakdown (Metric Tons CO2e)",
-            color="Scope Category",
-            color_discrete_sequence=["#1E40AF", "#3B82F6", "#F59E0B"]
-        )
-        fig_bar.update_layout(height=340, margin=dict(l=20, r=20, t=50, b=20), showlegend=False)
-        st.plotly_chart(fig_bar, use_container_width=True)
-
-    # Reconciliation and Scope 3 Callouts
+    # Scope 3 Criticality Callout
     s3_pct = m["scope_3_pct"]
     if s3_pct >= 50.0:
         st.warning(
             f"⚠️ **Scope 3 Criticality**: Supply chain represents **{s3_pct:.1f}%** ({s3:,.0f} MT CO2e) "
-            f"of total emissions. Supplier engagement is critical to reach the 2030 SBTi reduction target."
+            f"of total emissions. In accordance with the Scope 3 Standard, Tier 1 supplier audits and Category 1 LCAs are required."
         )
 
 # ------------------------------------------
-# TAB 3: Resources & Governance
+# TAB 3: Resources & Ethical Governance
 # ------------------------------------------
 with tab_resources:
     st.subheader("Resource Conservation & Ethical Governance Indicators")
@@ -452,16 +675,18 @@ with tab_resources:
         ])
         fig_energy.update_layout(
             barmode='stack',
-            title="Energy Mix: Clean vs Conventional Power (MWh)",
+            title="Energy Mix: Clean vs Conventional Grid Power (MWh)",
             height=280,
-            margin=dict(l=20, r=20, t=40, b=20)
+            margin=dict(l=20, r=20, t=40, b=20),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
         )
         st.plotly_chart(fig_energy, use_container_width=True)
 
-        col_w1, col_w2 = st.columns(2)
-        with col_w1:
+        w1, w2 = st.columns(2)
+        with w1:
             st.metric("Total Water Withdrawal", f"{m.get('water_withdrawn_m3', 0.0):,.0f} m³")
-        with col_w2:
+        with w2:
             st.metric("Water Recycling Ratio", f"{m.get('water_recycled_pct', 0.0):.1f}%", delta="Target: ≥50%")
 
     with col_res_r:
@@ -488,40 +713,81 @@ with tab_resources:
                 st.caption(f"• {w}")
 
 # ------------------------------------------
-# TAB 4: IBM Granite Strategic Roadmap
+# TAB 4: IBM Granite Roadmap & SC Johnson Matrix
 # ------------------------------------------
 with tab_granite:
-    st.subheader("🤖 IBM Granite AI Strategic Roadmap")
+    st.subheader("🤖 IBM Granite AI Strategic Roadmap & SC Johnson Matrix")
     st.info(
-        "Prioritized decarbonization action cards synthesized by rule-based prioritization "
-        "and IBM Granite 3.0 foundation model prompt reasoning."
+        "Prioritized decarbonization action cards synthesized by rule-based prioritization, "
+        "the SC Johnson CapEx vs. Impact matrix, and IBM Granite 3.0 foundation model prompt reasoning."
     )
 
+    # SC Johnson CapEx vs. Impact Decarbonization Matrix Chart
+    st.markdown("#### 📐 SC Johnson Decarbonization Opportunity Matrix")
+    matrix_data = pd.DataFrame([
+        {"Action": "Raw Material Decarbonization (BASF Model)", "CapEx": "Mid CapEx", "Impact": "Game-Changing", "Size": 25, "Color": "#10B981"},
+        {"Action": "Tier 1 Supplier Verification (Abengoa Model)", "CapEx": "Low CapEx", "Impact": "Game-Changing", "Size": 30, "Color": "#059669"},
+        {"Action": "Downstream Product Efficiency (IKEA Model)", "CapEx": "Mid CapEx", "Impact": "Game-Changing", "Size": 28, "Color": "#3B82F6"},
+        {"Action": "Virtual Power Purchase Agreements (VPPAs)", "CapEx": "Low CapEx", "Impact": "Incremental", "Size": 18, "Color": "#F59E0B"},
+        {"Action": "Fleet & Heat Pump Electrification", "CapEx": "High CapEx", "Impact": "Game-Changing", "Size": 22, "Color": "#6366F1"},
+        {"Action": "Closed-Loop Wastewater Bioreactors", "CapEx": "Low CapEx", "Impact": "Incremental", "Size": 15, "Color": "#06B6D4"}
+    ])
+
+    fig_matrix = px.scatter(
+        matrix_data,
+        x="CapEx",
+        y="Impact",
+        text="Action",
+        size="Size",
+        color="Action",
+        category_orders={"CapEx": ["Low CapEx", "Mid CapEx", "High CapEx"], "Impact": ["Incremental", "Game-Changing"]},
+        title="SC Johnson Opportunity Matrix: CapEx vs. Decarbonization Impact"
+    )
+    fig_matrix.update_traces(textposition='top center', textfont=dict(size=11, family='Plus Jakarta Sans'))
+    fig_matrix.update_layout(
+        height=320,
+        margin=dict(l=30, r=30, t=50, b=30),
+        showlegend=False,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(248,250,252,0.8)'
+    )
+    st.plotly_chart(fig_matrix, use_container_width=True)
+
+    # Dynamic Priority Action Cards
+    st.markdown("#### 🎯 Priority Action Cards")
     roadmap_items = advisor.generate_roadmap_items(analysis)
 
     for idx, item in enumerate(roadmap_items, 1):
-        with st.container():
+        st.markdown(f"""
+        <div class="rec-card-modern">
+            <div class="rec-header-row">
+                <span class="rec-badge-pillar" style="background:#EFF6FF; color:{item.get('badge_color', '#3B82F6')};">
+                    {item.get('pillar', 'Strategic Pillar')} &bull; {item.get('priority', 'Priority')}
+                </span>
+                <span style="font-size:0.8rem; font-weight:600; color:#64748B;">Benchmark: {item.get('benchmark_case', 'Global Standard')}</span>
+            </div>
+            <div class="rec-card-title">{idx}. {item.get('title')}</div>
+            <div class="rec-meta-box">📊 <b>Observed Metrics</b>: {item.get('metric')}</div>
+            <div class="rec-action-text">🎯 <b>Strategic Action Directive</b>: {item.get('action')}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # 8-Step Decarbonization Workflow Stepper
+    with st.expander("🧭 EcoGranite 8-Step Enterprise Decarbonization Workflow (Interactive Stepper)"):
+        eight_steps = advisor.get_eight_step_roadmap()
+        for s in eight_steps:
             st.markdown(f"""
-            <div class='rec-card'>
-                <div style='display:flex; justify-content:space-between; align-items:center;'>
-                    <span style='font-size:0.8rem; font-weight:700; color:{item.get("badge_color", "#3B82F6")}; text-transform:uppercase;'>
-                        {item.get('pillar', 'Strategic Pillar')} &bull; {item.get('priority', 'Priority')}
-                    </span>
+            <div class="step-box">
+                <div class="step-num-pill">{s['step']}</div>
+                <div>
+                    <div style="font-weight:700; color:#0F172A; font-size:0.95rem;">{s['title']}</div>
+                    <div style="font-size:0.88rem; color:#475569; margin-top:2px;">{s['action']}</div>
                 </div>
-                <div class='rec-title'>{idx}. {item.get('title')}</div>
-                <div class='rec-metric'>📊 <b>Observed Disclosure</b>: {item.get('metric')}</div>
-                <div class='rec-action'>🎯 <b>Target Action Plan</b>: {item.get('action')}</div>
             </div>
             """, unsafe_allow_html=True)
 
-    # 8-Step Standard Decarbonization Workflow
-    eight_steps = advisor.get_eight_step_roadmap()
-    with st.expander("🧭 EcoGranite 8-Step Enterprise Decarbonization Roadmap (Methodology Workflow)"):
-        for s in eight_steps:
-            st.markdown(f"**Step {s['step']}: {s['title']}**\n\n> {s['action']}")
-
-    # Benchmark case studies
-    with st.expander("🏢 Global Corporate Decarbonization Benchmarks (Abengoa, SC Johnson, BASF, IKEA, National Grid)"):
+    # Corporate Benchmark Case Studies
+    with st.expander("🏢 Corporate Benchmark Case Studies (Abengoa, SC Johnson, BASF, IKEA, National Grid)"):
         st.markdown("""
         - **Abengoa (Mandatory Supplier Verification)**: Enforces standardized GHG calculation templates across supply chain tiers, requiring third-party verified emissions integrated into its mandatory Social Responsibility Code of Conduct.
         - **SC Johnson (CapEx vs. Impact Decarbonization Matrix)**: Classifies emissions reduction options across Capital Expenditure levels (Low/Mid/High CapEx) against strategic impact (Game-Changing vs Incremental) and implementation horizons.
@@ -530,7 +796,7 @@ with tab_granite:
         - **National Grid (Capital Allocation Internalization)**: Quantified full value chain impacts, internalizing carbon costs into utility investment decision-making.
         """)
 
-    # Narrative AI Generation Button (Decoupled execution)
+    # Granite Narrative Synthesis (Decoupled execution)
     st.markdown("#### 🧠 Granite Narrative Synthesis")
     session_key = f"granite_insights_{company_name}_{reporting_year}"
     if session_key not in st.session_state:
