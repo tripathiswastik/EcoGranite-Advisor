@@ -514,6 +514,22 @@ with tab_granite:
             </div>
             """, unsafe_allow_html=True)
 
+    # 8-Step Standard Decarbonization Workflow
+    eight_steps = advisor.get_eight_step_roadmap()
+    with st.expander("🧭 EcoGranite 8-Step Enterprise Decarbonization Roadmap (Methodology Workflow)"):
+        for s in eight_steps:
+            st.markdown(f"**Step {s['step']}: {s['title']}**\n\n> {s['action']}")
+
+    # Benchmark case studies
+    with st.expander("🏢 Global Corporate Decarbonization Benchmarks (Abengoa, SC Johnson, BASF, IKEA, National Grid)"):
+        st.markdown("""
+        - **Abengoa (Mandatory Supplier Verification)**: Enforces standardized GHG calculation templates across supply chain tiers, requiring third-party verified emissions integrated into its mandatory Social Responsibility Code of Conduct.
+        - **SC Johnson (CapEx vs. Impact Decarbonization Matrix)**: Classifies emissions reduction options across Capital Expenditure levels (Low/Mid/High CapEx) against strategic impact (Game-Changing vs Incremental) and implementation horizons.
+        - **BASF (Category 1 Raw Material LCA Disaggregation)**: Evaluated Category 1 purchased goods, revealing that 93% of emissions stemmed directly from raw material extraction; deployed primary LCAs covering ~90% of purchased products by weight.
+        - **IKEA (Category 11 Product Energy Transformation)**: Determined use of sold products drove 20% of net footprint (~6M MT CO2e); executed a +50% product energy efficiency transformation surpassing direct operational impacts.
+        - **National Grid (Capital Allocation Internalization)**: Quantified full value chain impacts, internalizing carbon costs into utility investment decision-making.
+        """)
+
     # Narrative AI Generation Button (Decoupled execution)
     st.markdown("#### 🧠 Granite Narrative Synthesis")
     session_key = f"granite_insights_{company_name}_{reporting_year}"

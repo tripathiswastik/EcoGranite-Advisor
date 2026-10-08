@@ -110,10 +110,11 @@ class GraniteReasoningClient:
         if s3_pct > 50.0:
             items.append({
                 "pillar": "Supply Chain & Scope 3",
-                "title": "Accelerate Scope 3 Supplier Engagement",
+                "title": "Accelerate Scope 3 Supplier Engagement (Abengoa Protocol)",
                 "metric": f"{s3_pct:.1f}% of total footprint ({s3:,.0f} MT CO2e)",
-                "action": "Implement automated supplier carbon auditing via IBM Docling telemetry and transport logistics invoice ingestion.",
+                "action": "Enforce mandatory third-party verified vendor carbon accounting (Abengoa model) and execute Category 1 raw material LCA disaggregation (BASF model).",
                 "priority": "High Priority",
+                "benchmark_case": "Abengoa (Mandatory Supplier Verification) & BASF (Raw Material LCAs)",
                 "badge_color": "#EF4444"
             })
         else:
@@ -123,6 +124,7 @@ class GraniteReasoningClient:
                 "metric": f"{(100.0 - s3_pct):.1f}% direct emissions ({s1 + s2:,.0f} MT CO2e)",
                 "action": "Electrify commercial fleet and replace fossil heat with industrial heat pumps.",
                 "priority": "High Priority",
+                "benchmark_case": "National Grid (Capital Allocation Internalization)",
                 "badge_color": "#EF4444"
             })
 
@@ -131,10 +133,11 @@ class GraniteReasoningClient:
         if ren_status.get("status") != "Compliant":
             items.append({
                 "pillar": "Clean Power & Transition",
-                "title": "Close Renewable Electricity Deficit",
+                "title": "Close Renewable Electricity Deficit (SC Johnson CapEx Matrix)",
                 "metric": f"Currently {ren_val:.1f}% (target: >=60.0%)",
-                "action": "Execute long-term Virtual Power Purchase Agreements (VPPAs) and on-site solar storage.",
+                "action": "Execute long-term Virtual Power Purchase Agreements (VPPAs) and prioritize low-to-mid CapEx on-site solar storage.",
                 "priority": "High Priority",
+                "benchmark_case": "SC Johnson (CapEx vs. Impact Decarbonization Matrix)",
                 "badge_color": "#F59E0B"
             })
         else:
@@ -144,30 +147,46 @@ class GraniteReasoningClient:
                 "metric": f"Exceeds RE threshold at {ren_val:.1f}%",
                 "action": "Transition from annual RECs to hourly matching and battery storage orchestration.",
                 "priority": "Medium Priority",
+                "benchmark_case": "RE100 Technical Framework",
                 "badge_color": "#10B981"
             })
 
-        # Card 3: Circular Economy & Governance
+        # Card 3: Circular Economy & Product Efficiency
         if water_rec_pct < 50.0:
             items.append({
                 "pillar": "Water & Circularity",
                 "title": "Water Recycling & Closed-Loop Recovery",
                 "metric": f"Current wastewater recycling at {water_rec_pct:.1f}% (below 50% target)",
-                "action": "Scale closed-loop recovery technology and membrane bioreactors to surpass 50% capacity by FY 2026.",
+                "action": "Scale closed-loop recovery technology and membrane bioreactors to surpass 50% circularity by FY 2026.",
                 "priority": "Medium Priority",
+                "benchmark_case": "Closed-Loop Circular Effluent Recovery",
                 "badge_color": "#3B82F6"
             })
         else:
             items.append({
-                "pillar": "Waste Elimination",
-                "title": "Zero-Waste to Landfill Certification",
+                "pillar": "Product & Downstream Efficiency",
+                "title": "Downstream Energy Transformation (IKEA Model)",
                 "metric": f"Strong water recycling at {water_rec_pct:.1f}%",
-                "action": "Target residual supply chain packaging with post-consumer recycled (PCR) circular inputs.",
+                "action": "Drive scale reductions in Category 11 use-phase product energy efficiency targeting +50% efficiency (IKEA model).",
                 "priority": "Medium Priority",
+                "benchmark_case": "IKEA (Category 11 Product Efficiency Scaling)",
                 "badge_color": "#3B82F6"
             })
 
         return items
+
+    def get_eight_step_roadmap(self) -> List[Dict[str, Any]]:
+        """Provides the standardized EcoGranite 8-step enterprise decarbonization workflow."""
+        return [
+            {"step": 1, "title": "Define Business Goals & Align Stakeholders", "action": "Secure board-level sponsorship and link executive variable compensation to SBTi Scope 3 goals."},
+            {"step": 2, "title": "Select Consolidation Boundary & Core Principles", "action": "Adopt uniform Operational Control, Financial Control, or Equity Share across operating assets."},
+            {"step": 3, "title": "Map Value Chain & Screen 15 Category Hot Spots", "action": "Screen enterprise activities across all 15 Scope 3 categories to pinpoint high-impact nodes."},
+            {"step": 4, "title": "Enforce Minimum Category Boundaries & Exclusions", "action": "Apply cradle-to-gate accounting (no capital goods amortization per Box 5.4) and justify exclusions."},
+            {"step": 5, "title": "Collect Primary Data & Execute Allocation Formulas", "action": "Deploy supplier calculation templates; apply standardized T&D loss and investment allocation formulas."},
+            {"step": 6, "title": "Establish Base Year & Recalculation Policies", "action": "Publish quantitative targets and define formal recalculation triggers for structural M&A changes."},
+            {"step": 7, "title": "Deploy Supplier Engagement (Abengoa / SC Johnson)", "action": "Enforce 3rd-party verified vendor accounting via Code of Conduct; prioritize CapEx vs impact matrix."},
+            {"step": 8, "title": "Public Disclosure & Secure Third-Party Assurance", "action": "Disclose 15 disaggregated categories under EcoGranite to unlock sustainability-linked debt financing."}
+        ]
 
     def _local_granite_reasoning(self, audit_summary: Dict[str, Any]) -> str:
         """

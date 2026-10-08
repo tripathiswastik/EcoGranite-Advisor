@@ -364,6 +364,10 @@ class EcoGraniteAdvisor:
         """Returns structured strategic roadmap items synthesized by IBM Granite rule engine."""
         return self.granite_client.generate_structured_recommendations(analysis)
 
+    def get_eight_step_roadmap(self) -> list:
+        """Returns the standardized 8-step decarbonization workflow."""
+        return self.granite_client.get_eight_step_roadmap()
+
     def generate_ai_insights(self, analysis: Dict[str, Any]) -> str:
         """Invokes IBM WatsonX / Local Granite model to generate narrative insights."""
         return self.granite_client.generate_esg_insights(analysis)
