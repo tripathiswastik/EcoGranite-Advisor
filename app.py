@@ -274,6 +274,14 @@ def load_dataset_file(filename: str) -> Dict[str, Any]:
     return {"company_name": "Sample Entity", "status": "extraction_failed", "errors": ["File not found"]}
 
 
+def safe_dataframe(df: pd.DataFrame):
+    """Safely renders a pandas DataFrame across all Streamlit versions (handles older versions without hide_index)."""
+    try:
+        st.dataframe(df, use_container_width=True, hide_index=True)
+    except TypeError:
+        st.dataframe(df, use_container_width=True)
+
+
 # ==========================================
 # Sidebar: Controls & Document Ingestion
 # ==========================================
@@ -634,10 +642,7 @@ with tab_exec:
             "Risk Rating": d["risk"]
         })
     df_bench = pd.DataFrame(bench_rows)
-    try:
-        st.dataframe(df_bench, use_container_width=True, hide_index=True)
-    except TypeError:
-        st.dataframe(df_bench, use_container_width=True)
+    safe_dataframe(df_bench)
 
     # ==========================================
     # v3.0: SASB SICS Sector Materiality Weighting
@@ -668,7 +673,7 @@ with tab_exec:
             {"Material Category": cat, "Weight": f"{w:.0f}%"}
             for cat, w in sec_res.get("weights", {}).items()
         ])
-        st.dataframe(df_sec_weights, use_container_width=True, hide_index=True)
+        safe_dataframe(df_sec_weights)
 
     # ==========================================
     # v3.0: CSRD Double Materiality Matrix (ESRS 1 & 2)
@@ -744,7 +749,7 @@ with tab_exec:
     scorecard_data = advisor.generate_multi_framework_scorecard()
     df_sc = pd.DataFrame(scorecard_data)
     df_sc.columns = ["Company Entity", "Audit Cycle", "GRI Baseline Score", "CSRD ESRS Strict Score", "SEBI BRSR Core Status", "Primary Audit Priority"]
-    st.dataframe(df_sc, use_container_width=True, hide_index=True)
+    safe_dataframe(df_sc)
 
 # ------------------------------------------
 # TAB 2: GHG Scope 1-3 Waterfall & Analytics
