@@ -3,13 +3,13 @@
 [![Challenge](https://img.shields.io/badge/Challenge-IBM%20SkillsBuild%20AI%20Builders-052F5F.svg?style=flat&logo=IBM)](https://github.com/IBM-SkillsBuild-AI-Builders-Challenge)
 [![Model](https://img.shields.io/badge/Model-IBM%20Granite%203.0-blue.svg)](https://huggingface.co/ibm-granite)
 [![Parser](https://img.shields.io/badge/Parser-IBM%20Docling%20Bridge-green.svg)](https://github.com/DS4SD/docling)
-[![Tests](https://img.shields.io/badge/Tests-Passing%20(6%2F6)-brightgreen.svg)](https://github.com/tripathiswastik/EcoGranite-Advisor)
+[![Tests](https://img.shields.io/badge/Tests-Passing%20(8%2F8)-brightgreen.svg)](https://github.com/tripathiswastik/EcoGranite-Advisor)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Author](https://img.shields.io/badge/Author-Swastik%20Tripathi-blueviolet.svg)](https://github.com/tripathiswastik)
 
 An intelligent, autonomous ESG (Environmental, Social, and Governance) corporate sustainability audit engine developed for the **IBM SkillsBuild AI Builders Challenge**. 
 
-EcoGranite-Advisor ingests corporate sustainability disclosures, provides an **IBM Docling** extraction bridge for complex PDF reports, performs risk-weighted continuous compliance auditing, and generates decarbonization roadmaps powered by **IBM Granite 3.0** (with both live WatsonX API support and a deterministic local fallback).
+EcoGranite-Advisor ingests corporate sustainability disclosures, provides an **IBM Docling** extraction bridge for complex PDF reports, performs risk-weighted continuous compliance auditing, provides an interactive **Streamlit Web Dashboard (`app.py`)**, and generates decarbonization roadmaps powered by **IBM Granite 3.0** (with both live WatsonX API support and a deterministic local fallback).
 
 ---
 
@@ -49,30 +49,36 @@ Traditional text extraction tools flatten these tables, misaligning GHG rows wit
 |  • Dynamic, data-derived roadmap   |
 +------------------------------------+
                   |
-                  v
-+------------------------------------+
-|    Executive ESG Audit Report      |
-+------------------------------------+
+         +--------+--------+
+         |                 |
+         v                 v
++-----------------+ +------------------------------+
+|   CLI Auditor   | | Streamlit Dashboard (app.py) |
+|  Text & Report  | | Plotly Visuals, Gauge, Cards |
++-----------------+ +------------------------------+
 ```
 
 ---
 
 ## 🌟 Key Features
 
-1. **📄 IBM Docling Integration Bridge (`esg_parser.py`)**:
-   - Accepts both `.pdf` / `.docx` files via IBM Docling's `DocumentConverter` and pre-processed `.json` disclosures.
+1. **🖥️ Interactive Streamlit Web Dashboard (`app.py`)**:
+   - Executive ESG Readiness Score gauge with dynamic risk tiers ([A] Leader to [D] Critical).
+   - GHG Protocol Scope 1–3 interactive donut and bar breakdown charts.
+   - Resource circularity stacked energy charts, water recycling, and governance indicators.
+   - IBM Granite AI Strategic Roadmap with prioritized action cards and audit report exporter.
+2. **📄 IBM Docling Integration Bridge (`esg_parser.py`)**:
+   - Accepts `.pdf`, `.docx`, and `.json` files via IBM Docling's `DocumentConverter`.
    - Normalizes missing fields with safe defaults and clamps negative/zero values.
-2. **🧠 Dual-Mode IBM Granite 3.0 Engine (`granite_client.py`)**:
+3. **🧠 Dual-Mode IBM Granite 3.0 Engine (`granite_client.py`)**:
    - **Live Mode**: Calls IBM WatsonX AI (`ibm-watsonx-ai`) foundation models when `WATSONX_APIKEY` and `WATSONX_PROJECT_ID` are configured.
    - **Local Mode**: Uses deterministic Granite 3.0 prompt logic deriving all recommendations from the supplied metrics.
-3. **📈 Continuous, Proportional Scoring Model**:
+4. **📈 Continuous, Proportional Scoring Model**:
    - Replaced abrupt binary cutoff jumps with continuous weighted scoring across 4 pillars (Renewable Energy, YoY Abatement, Waste Diversion, Board Diversity).
-4. **🔍 Dynamic, Data-Derived Recommendations**:
+5. **🔍 Dynamic, Data-Derived Recommendations**:
    - Scope 3 percentages, water circularity goals, and YoY on-track flags are calculated from the actual input payload.
-5. **💻 Flexible CLI Tool**:
-   - Accepts arbitrary input files using `--input <file>` rather than hardcoding a demo fixture.
 6. **🧪 Comprehensive Test Suite (`test_advisor.py`)**:
-   - 6 automated unit tests validating boundary cases, negative values, and scoring accuracy.
+   - 8 automated unit tests validating boundary cases, negative values, stream inputs, and scoring accuracy.
 
 ---
 
@@ -80,10 +86,11 @@ Traditional text extraction tools flatten these tables, misaligning GHG rows wit
 
 ```text
 EcoGranite-Advisor/
+├── app.py                     # Streamlit Interactive Web Dashboard
 ├── advisor_engine.py          # Main CLI entrypoint & continuous compliance auditor
 ├── esg_parser.py              # IBM Docling PDF/DOCX bridge & data normalizer
 ├── granite_client.py          # Dual IBM Granite client (WatsonX API + Local Reasoning)
-├── test_advisor.py            # Unit test suite covering scoring and edge cases
+├── test_advisor.py            # Unit test suite covering scoring and edge cases (8 tests)
 ├── sample_esg_report.json     # Sample corporate disclosure dataset
 ├── requirements.txt           # Dependencies for Docling, WatsonX, and Streamlit
 └── README.md                  # Challenge documentation & architecture specification
@@ -93,7 +100,13 @@ EcoGranite-Advisor/
 
 ## 🚀 Quick Start Guide
 
-### 1. Run the Advisor Engine
+### 1. Launch the Streamlit Web Dashboard
+```bash
+streamlit run app.py
+```
+*Access the dashboard at `http://localhost:8501` to upload disclosures, inspect Scope 1–3 charts, and review Granite roadmaps.*
+
+### 2. Run the Advisor Engine (CLI)
 ```bash
 # Run with sample report
 python advisor_engine.py --input sample_esg_report.json
@@ -102,7 +115,7 @@ python advisor_engine.py --input sample_esg_report.json
 python advisor_engine.py --input path/to/your_report.json
 ```
 
-### 2. Run the Test Suite
+### 3. Run the Automated Test Suite
 ```bash
 python -m unittest test_advisor.py
 ```

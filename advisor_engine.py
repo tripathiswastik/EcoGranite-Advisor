@@ -19,9 +19,9 @@ class EcoGraniteAdvisor:
         self.model_id = model_id
         self.granite_client = GraniteReasoningClient(model_id=model_id)
 
-    def load_document(self, file_path: str) -> Dict[str, Any]:
+    def load_document(self, file_source: Any) -> Dict[str, Any]:
         """Loads and normalizes an ESG report via the parser pipeline."""
-        return parse_document(file_path)
+        return parse_document(file_source)
 
     def calculate_continuous_score(self, value: float, target: float, max_weight: float, higher_is_better: bool = True) -> float:
         """
@@ -126,6 +126,7 @@ class EcoGraniteAdvisor:
         return {
             "company_name": data.get("company_name", "Unknown Entity"),
             "reporting_year": data.get("reporting_year", "N/A"),
+            "standards": data.get("standards", ["GRI", "TCFD", "SASB"]),
             "esg_readiness_score": total_score,
             "rating_tier": rating,
             "reduction_pass": reduction_pass,
@@ -136,11 +137,25 @@ class EcoGraniteAdvisor:
                 "total_ghg": total_ghg,
                 "scope_3_pct": s3_pct,
                 "renewable_pct": ren_pct,
+                "renewable_mwh": energy.get("renewable_mwh", 0.0),
+                "total_mwh": energy.get("total_mwh_consumed", 0.0),
+                "re100_committed": bool(energy.get("re100_committed", False)),
+                "water_withdrawn_m3": waste.get("total_water_withdrawal_m3", 0.0),
                 "water_recycled_pct": waste.get("water_recycled_pct", 0.0),
-                "achieved_yoy_pct": yoy_red
+                "waste_diverted_pct": waste_div,
+                "female_board_rep_pct": board_div,
+                "independent_directors_pct": gov.get("independent_directors_pct", 0.0),
+                "gender_pay_equity_ratio": gov.get("gender_pay_equity_ratio", 1.0),
+                "supplier_signoff_pct": gov.get("supplier_code_of_conduct_signoff_pct", 0.0),
+                "achieved_yoy_pct": yoy_red,
+                "target_reduction_2030_pct": emissions.get("target_reduction_2030_pct", 45.0)
             },
             "benchmarks": benchmarks
         }
+
+    def generate_roadmap_items(self, analysis: Dict[str, Any]) -> list:
+        """Returns structured strategic roadmap items synthesized by IBM Granite."""
+        return self.granite_client.generate_structured_recommendations(analysis)
 
     def generate_audit_report(self, data: Dict[str, Any], analysis: Dict[str, Any]) -> str:
         """Constructs a comprehensive, transparent audit report."""

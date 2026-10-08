@@ -56,6 +56,86 @@ class GraniteReasoningClient:
         response = model.generate_text(prompt=prompt)
         return response
 
+    def generate_structured_recommendations(self, audit_summary: Dict[str, Any]) -> list:
+        """
+        Derives structured decarbonization action items for UI card presentation.
+        """
+        metrics = audit_summary.get("metrics", {})
+        benchmarks = audit_summary.get("benchmarks", {})
+
+        s3_pct = metrics.get("scope_3_pct", 0.0)
+        s1 = metrics.get("scope_1", 0.0)
+        s2 = metrics.get("scope_2", 0.0)
+        s3 = metrics.get("scope_3", 0.0)
+        tot_ghg = metrics.get("total_ghg", 0.0)
+        ren_val = metrics.get("renewable_pct", 0.0)
+        water_rec_pct = metrics.get("water_recycled_pct", 0.0)
+
+        items = []
+
+        # Card 1: Value Chain
+        if s3_pct > 50.0:
+            items.append({
+                "pillar": "Supply Chain & Scope 3",
+                "title": "Accelerate Scope 3 Supplier Engagement",
+                "metric": f"{s3_pct:.1f}% of total footprint ({s3:,.0f} MT CO2e)",
+                "action": "Implement automated supplier carbon auditing via IBM Docling telemetry and transport logistics invoice ingestion.",
+                "priority": "High Priority",
+                "badge_color": "#EF4444"
+            })
+        else:
+            items.append({
+                "pillar": "Direct Operations",
+                "title": "Accelerate Scope 1 & 2 Electrification",
+                "metric": f"{(100.0 - s3_pct):.1f}% direct emissions ({s1 + s2:,.0f} MT CO2e)",
+                "action": "Electrify commercial fleet and replace fossil heat with industrial heat pumps.",
+                "priority": "High Priority",
+                "badge_color": "#EF4444"
+            })
+
+        # Card 2: Renewable Energy
+        ren_status = benchmarks.get("Renewable Energy Share (Target >= 60%)", {})
+        if ren_status.get("status") != "Compliant":
+            items.append({
+                "pillar": "Clean Power & Transition",
+                "title": "Close Renewable Electricity Deficit",
+                "metric": f"Currently {ren_val:.1f}% (target: ≥60.0%)",
+                "action": "Execute long-term Virtual Power Purchase Agreements (VPPAs) and on-site solar storage.",
+                "priority": "High Priority",
+                "badge_color": "#F59E0B"
+            })
+        else:
+            items.append({
+                "pillar": "Clean Power Leadership",
+                "title": "Advance 24/7 Carbon-Free Energy Matching",
+                "metric": f"Exceeds RE threshold at {ren_val:.1f}%",
+                "action": "Transition from annual RECs to hourly matching and battery storage orchestration.",
+                "priority": "Medium Priority",
+                "badge_color": "#10B981"
+            })
+
+        # Card 3: Circular Economy & Governance
+        if water_rec_pct < 50.0:
+            items.append({
+                "pillar": "Water & Circularity",
+                "title": "Water Recycling & Closed-Loop Recovery",
+                "metric": f"Current wastewater recycling at {water_rec_pct:.1f}% (below 50% target)",
+                "action": "Scale closed-loop recovery technology and membrane bioreactors to surpass 50% capacity by FY 2026.",
+                "priority": "Medium Priority",
+                "badge_color": "#3B82F6"
+            })
+        else:
+            items.append({
+                "pillar": "Waste Elimination",
+                "title": "Zero-Waste to Landfill Certification",
+                "metric": f"Strong water recycling at {water_rec_pct:.1f}%",
+                "action": "Target residual supply chain packaging with post-consumer recycled (PCR) circular inputs.",
+                "priority": "Medium Priority",
+                "badge_color": "#3B82F6"
+            })
+
+        return items
+
     def _local_granite_reasoning(self, audit_summary: Dict[str, Any]) -> str:
         """
         Deterministic reasoning following IBM Granite 3.0 prompting guidelines.
@@ -112,3 +192,4 @@ class GraniteReasoningClient:
 
         header = "STRATEGIC RECOMMENDATIONS (IBM Granite 3.0 Reasoning):\n"
         return header + "\n".join(f"   {rec}" for rec in recommendations)
+
