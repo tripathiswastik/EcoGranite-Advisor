@@ -13,22 +13,27 @@ from typing import Dict, Any, Union, List, Optional
 
 logger = logging.getLogger(__name__)
 
+import importlib
+
 # Check for IBM Docling availability
 try:
-    from docling.document_converter import DocumentConverter
+    _docling_mod = importlib.import_module("docling.document_converter")
+    DocumentConverter = getattr(_docling_mod, "DocumentConverter")
     DOCLING_AVAILABLE = True
-except ImportError:
+except Exception:
+    DocumentConverter = None
     DOCLING_AVAILABLE = False
 
 # Check for PyPDF2 / pypdf fallback (proper PDF stream decompression)
 try:
-    import PyPDF2
+    PyPDF2 = importlib.import_module("PyPDF2")
     PDF_PARSER_AVAILABLE = True
-except ImportError:
+except Exception:
     try:
-        import pypdf as PyPDF2
+        PyPDF2 = importlib.import_module("pypdf")
         PDF_PARSER_AVAILABLE = True
     except Exception:
+        PyPDF2 = None
         PDF_PARSER_AVAILABLE = False
 
 
@@ -433,7 +438,8 @@ def validate_and_normalize_esg(data: Dict[str, Any]) -> Dict[str, Any]:
         validation_warnings.append(f"Independent directors ({indep_dir}%) was outside 0-100% range.")
 
     # Data completeness computation
-    completeness_pct = round((core_fields_present / core_fields_evaluated) * 100.0, 1) if core_fields_evaluated > 0 else 0.0
+    denom = core_fields_evaluated if core_fields_evaluated > 0 else 1
+    completeness_pct = round((core_fields_present / denom) * 100.0, 1) if core_fields_evaluated > 0 else 0.0
 
     return {
         "status": "success",
