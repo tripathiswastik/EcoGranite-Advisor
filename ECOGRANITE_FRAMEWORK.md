@@ -234,3 +234,57 @@ Under the GHG Protocol Corporate Standard, an enterprise must select one of thre
 6. **Base-Year Selection & Target Setting**: Establish an auditable base year and recalculation thresholds.
 7. **Supplier Engagement Deployment**: Enforce verified reporting protocols (Abengoa model) and prioritize CapEx vs. reduction impact (SC Johnson matrix).
 8. **Public Disclosure & Third-Party Assurance**: Publish disaggregated disclosures under the EcoGranite framework to unlock sustainability-linked financing and eliminate rating agency penalties.
+
+---
+
+## 6. Indian Statutory ESG Architecture & SEBI BRSR Core Mandate
+
+### Regulatory Context & Evolution
+In India, ESG compliance transitioned from voluntary business responsibility principles to enforceable statutory mandates under the Securities and Exchange Board of India (SEBI) and the Ministry of Corporate Affairs (MCA):
+* **National Voluntary Guidelines (NVGs, 2011)** & **National Guidelines on Responsible Business Conduct (NGRBC, 2019)**: Foundational 9 principles of responsible business conduct.
+* **SEBI Business Responsibility and Sustainability Report (BRSR, 2021)**: Mandatory for top 1,000 listed entities by market capitalization under Regulation 34(2)(f) of SEBI (LODR) Regulations.
+* **SEBI BRSR Core & Value Chain Circular (July 12, 2023 - `SEBI/HO/CFD/CFD-SEC-2/P/CIR/2023/122`)**: Introduced a concentrated subset of 9 key ESG attributes requiring mandatory **Reasonable Assurance** by independent assurance providers, with phased value chain (Scope 3) reporting for the top 250 listed entities.
+
+```text
+               INDIAN STATUTORY ESG COMPLIANCE ECOSYSTEM
++-------------------------------------------------------------------------+
+|                  Ministry of Corporate Affairs (MCA)                    |
+|    • Companies Act, 2013 (Section 135): Mandatory 2% Net Profit CSR     |
++-------------------------------------------------------------------------+
+                                    |
+                                    v
++-------------------------------------------------------------------------+
+|          Securities and Exchange Board of India (SEBI)                  |
+|    • SEBI LODR Regulation 17(1): Independent Directors & Gender Balance |
+|    • SEBI BRSR Mandate: Top 1,000 Listed Entities                       |
+|    • SEBI BRSR Core Mandate: 9 Assurable KPI Attributes                 |
+|    • Value Chain ESG: Top 250 Entities (Scope 3 Upstream/Downstream)    |
++-------------------------------------------------------------------------+
+                                    |
+                                    v
++-------------------------------------------------------------------------+
+|            India COP26 "Panchamrit" Decarbonization Targets             |
+|    • 500 GW Non-Fossil Capacity by 2030                                 |
+|    • 50% Renewable Electricity by 2030                                  |
+|    • 45% Carbon Intensity Reduction by 2030                             |
+|    • Net-Zero GHG Emissions by 2070                                     |
++-------------------------------------------------------------------------+
+```
+
+### The 9 Attributes of SEBI BRSR Core
+1. **Greenhouse Gas (GHG) Footprint**: Disaggregated Scope 1 and Scope 2 emissions (MT CO2e), intensity per rupee of turnover, and Scope 3 value chain emissions.
+2. **Water Consumption & Water Neutrality**: Total water withdrawal, consumption intensity, and percentage of water recycled/reused (Zero Liquid Discharge prioritization).
+3. **Energy Footprint & Transition**: Total energy consumption (Joules/MWh), renewable energy share, and RE100 commitments.
+4. **Circular Economy & Waste Management**: Total hazardous and non-hazardous waste generated, recovery ratio, and percentage diverted from landfills.
+5. **Employee Well-being and Safety**: Lost Time Injury Frequency Rate (LTIFR), median remuneration, and social security coverage.
+6. **Gender Diversity & Inclusion**: Gross wages paid to female employees, female representation on the board (SEBI LODR), and equal remuneration audits.
+7. **Inclusive Development & Section 135 CSR**: Direct corporate social responsibility investments (mandatory ≥2% average net profit) in designated developmental aspirational districts.
+8. **Fair Customer Conduct & Data Privacy**: Cyber security incidents, customer grievance resolution rates, and data protection compliance.
+9. **Openness of Business (Ethical Supply Chain)**: Payment terms with MSMEs, supplier sign-off on code of conduct, and extended producer responsibility (EPR) tracking.
+
+### Corporate Benchmark: Infosys Limited Case Study
+* **Carbon Neutrality Trajectory**: Infosys achieved voluntary operational carbon neutrality in 2020—a full 30 years ahead of the Paris Agreement 2050 timeline.
+* **Energy Transition (74.8% Renewable Electricity)**: Deployed 60+ MW of captive on-site solar installations combined with long-term green Virtual Power Purchase Agreements (VPPAs) across Indian development centres.
+* **Water Stewardship (Zero Liquid Discharge)**: Recycles 65.4% of total water consumption through decentralized membrane bioreactors (MBRs) and smart water meters across corporate campuses.
+* **Statutory Compliance**: Exceeds Section 135 CSR statutory requirements with 2.05% net profit allocation ($50M+ USD equivalent) toward community education, rural healthcare, and environmental conservation.
+

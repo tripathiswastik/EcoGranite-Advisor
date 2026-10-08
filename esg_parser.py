@@ -378,7 +378,9 @@ def validate_and_normalize_esg(data: Dict[str, Any]) -> Dict[str, Any]:
         "status": "success",
         "company_name": company_name,
         "reporting_year": reporting_year,
-        "standards": data.get("standards", ["GRI", "TCFD", "SASB"]),
+        "country": data.get("country", "India"),
+        "jurisdiction": data.get("jurisdiction", "SEBI BRSR Core & Global Frameworks"),
+        "standards": data.get("standards", ["SEBI BRSR", "GRI", "TCFD", "SASB"]),
         "emissions_metric_tons_co2e": {
             "scope_1_direct": s1,
             "scope_2_indirect_market": s2,

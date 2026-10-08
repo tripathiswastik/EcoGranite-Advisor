@@ -1,7 +1,9 @@
 {
   "company_name": "EcoGlobal Enterprise Corp.",
   "reporting_year": 2024,
-  "standards": ["GRI", "TCFD", "SASB"],
+  "country": "India",
+  "jurisdiction": "SEBI BRSR & Global Frameworks",
+  "standards": ["SEBI BRSR", "GRI", "TCFD", "SASB"],
   "emissions_metric_tons_co2e": {
     "scope_1_direct": 14250.0,
     "scope_2_indirect_market": 8940.0,

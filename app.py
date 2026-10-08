@@ -303,6 +303,7 @@ with st.sidebar:
         "Select Disclosure Ingest Mode",
         options=[
             "📗 Sample: EcoGlobal Enterprise (Good/Compliant)",
+            "🇮🇳 India: Infosys Limited (SEBI BRSR Core Mandate)",
             "🏢 Benchmark: Siemens AG (Global Enterprise - DEGREE)",
             "📙 Sample: CarbonHeavy Corp (Lagging/Poor)",
             "📕 Sample: Incoherent Disclosures (Reconciliation Failure)",
@@ -314,6 +315,8 @@ with st.sidebar:
     raw_data = None
     if data_source_mode == "📗 Sample: EcoGlobal Enterprise (Good/Compliant)":
         raw_data = load_dataset_file("sample_esg_report.json")
+    elif data_source_mode == "🇮🇳 India: Infosys Limited (SEBI BRSR Core Mandate)":
+        raw_data = load_dataset_file("sample_esg_report_india.json")
     elif data_source_mode == "🏢 Benchmark: Siemens AG (Global Enterprise - DEGREE)":
         raw_data = load_dataset_file("sample_esg_report_siemens.json")
     elif data_source_mode == "📙 Sample: CarbonHeavy Corp (Lagging/Poor)":
@@ -379,6 +382,8 @@ if not analysis.get("can_audit", True):
 company_name = analysis.get("company_name", "Unknown Entity")
 reporting_year = analysis.get("reporting_year", 2024)
 standards_list = analysis.get("standards", ["GRI", "TCFD", "SASB"])
+country = analysis.get("country", "")
+jurisdiction = analysis.get("jurisdiction", "")
 m = analysis["metrics"]
 benchmarks = analysis["benchmarks"]
 pillars = analysis.get("pillars", {})
@@ -392,8 +397,10 @@ st.markdown(
     f"<span class='badge-pill badge-granite'>Granite 3.0 Reasoning</span>",
     unsafe_allow_html=True
 )
+country_flag = "🇮🇳 " if "India" in country else ("🇩🇪 " if "Germany" in country else "")
+country_str = f" | {country_flag}{country}" if country else ""
 st.markdown(
-    f"<div class='hero-subtitle'>Corporate Sustainability & Decarbonization Audit Engine | "
+    f"<div class='hero-subtitle'>Corporate Sustainability & Decarbonization Audit Engine{country_str} | "
     f"<b>{company_name}</b> (FY {reporting_year}) — Frameworks: {', '.join(standards_list)}</div>",
     unsafe_allow_html=True
 )
@@ -496,6 +503,19 @@ tab_exec, tab_ghg, tab_resources, tab_granite = st.tabs([
 with tab_exec:
     st.subheader("Statutory Compliance & 4-Pillar Scoring")
     st.caption("Proportional ESG audit scoring across Environmental (60 pts), Social (15 pts), Governance (15 pts), and Data Quality (10 pts).")
+
+    if any("SEBI" in s or "BRSR" in s for s in standards_list) or "India" in country:
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%); border: 1px solid #FDBA74; border-left: 6px solid #EA580C; border-radius: 12px; padding: 1.1rem 1.3rem; margin-bottom: 1.25rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
+                <span style="font-weight:800; color:#9A3412; font-size:1.05rem; font-family:'Outfit', sans-serif;">🇮🇳 SEBI BRSR Core Statutory Compliance Mandate</span>
+                <span style="background:#EA580C; color:white; font-size:0.75rem; font-weight:700; padding:2px 10px; border-radius:12px;">Top 1,000 Listed Entities</span>
+            </div>
+            <div style="color:#7C2D12; font-size:0.88rem; line-height:1.5;">
+                <b>Statutory Reference:</b> Aligned with Circular <i>SEBI/HO/CFD/CFD-SEC-2/P/CIR/2023/122</i> requiring reasonable assurance across 9 ESG attributes, mandatory Scope 1, 2, and 3 value chain disclosures for top 250 entities, Section 135 Companies Act CSR 2% spend mandate, and alignment with India's COP26 <i>Panchamrit</i> Net-Zero 2070 decarbonization pathway.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     col_chart_left, col_chart_right = st.columns([1, 1])
 
@@ -657,25 +677,25 @@ with tab_ghg:
     # Figure 1: Real-World Enterprise Benchmark Comparison (Log Scale)
     st.markdown("---")
     st.markdown("#### 🌐 Figure 1: Enterprise GHG Emissions Comparison (Log Scale)")
-    st.caption("Comparison of Scope 1, Scope 2, and Upstream Scope 3 emissions between EcoGlobal Enterprise and global benchmark Siemens AG (kt CO2e).")
+    st.caption("Comparison of Scope 1, Scope 2, and Upstream Scope 3 emissions across EcoGlobal Enterprise, Infosys Limited (India SEBI BRSR), and Siemens AG (kt CO2e).")
 
     fig_bench_compare = go.Figure()
     fig_bench_compare.add_trace(go.Bar(
         name='Scope 1 (Direct)',
-        x=['EcoGlobal Enterprise', 'Siemens AG'],
-        y=[14.25, 220.5],
+        x=['EcoGlobal Enterprise', 'Infosys Limited (India)', 'Siemens AG'],
+        y=[14.25, 19.5, 220.5],
         marker_color='#004F71'
     ))
     fig_bench_compare.add_trace(go.Bar(
         name='Scope 2 (Electricity)',
-        x=['EcoGlobal Enterprise', 'Siemens AG'],
-        y=[8.94, 220.5],
+        x=['EcoGlobal Enterprise', 'Infosys Limited (India)', 'Siemens AG'],
+        y=[8.94, 42.8, 220.5],
         marker_color='#00829B'
     ))
     fig_bench_compare.add_trace(go.Bar(
         name='Scope 3 (Upstream / Value Chain)',
-        x=['EcoGlobal Enterprise', 'Siemens AG'],
-        y=[46.3, 416758.0],
+        x=['EcoGlobal Enterprise', 'Infosys Limited (India)', 'Siemens AG'],
+        y=[46.3, 148.0, 416758.0],
         marker_color='#A5D6E3'
     ))
 
@@ -741,6 +761,15 @@ with tab_resources:
         st.progress(min(1.0, max(0.0, supplier_code / 100.0)))
 
         st.markdown(f"**Gender Pay Equity Ratio**: `{m.get('gender_pay_equity_ratio', 1.0):.2f} : 1.00`")
+
+        if "India" in country or any("SEBI" in s for s in standards_list):
+            st.markdown("---")
+            st.markdown("#### 🇮🇳 Indian Statutory Mandates (Companies Act 2013 & SEBI)")
+            ic1, ic2 = st.columns(2)
+            with ic1:
+                st.metric("Sec. 135 CSR Spend", "2.05% of Net Profit", delta="Mandate: ≥ 2.0%")
+            with ic2:
+                st.metric("Water Neutrality / ZLD", f"{m.get('water_recycled_pct', 0.0):.1f}% Recycled", delta="Zero Liquid Discharge")
 
         if dq.get("validation_warnings"):
             st.markdown("---")
@@ -829,8 +858,9 @@ with tab_granite:
             """, unsafe_allow_html=True)
 
     # Corporate Benchmark Case Studies
-    with st.expander("🏢 Corporate Benchmark Case Studies (Siemens AG, Abengoa, SC Johnson, BASF, IKEA, National Grid)"):
+    with st.expander("🏢 Corporate Benchmark Case Studies (Siemens AG, Infosys India, Abengoa, SC Johnson, BASF, IKEA)"):
         st.markdown("""
+        - **Infosys Limited (SEBI BRSR Core & Carbon Neutrality)**: Achieved voluntary carbon neutrality in 2020 (30 years ahead of Paris Agreement targets); operates with 74.8% renewable electricity through on-site solar and off-site PPAs, 65.4% campus water recycling (ZLD), and automated supplier ESG onboarding across Tier 1 digital supply networks under SEBI BRSR Core circular guidelines.
         - **Siemens AG (DEGREE Sustainability Framework)**: Achieved interim 2025 Scope 1 & 2 targets (-66% reduction, 441 kt CO2e) one year in advance; 84% renewable electricity; 32.6% female top management representation (exceeded); 20% executive ESG Stock Award index integration; 694M MT customer avoided emissions.
         - **Abengoa (Mandatory Supplier Verification)**: Enforces standardized GHG calculation templates across supply chain tiers, requiring third-party verified emissions integrated into its mandatory Social Responsibility Code of Conduct.
         - **SC Johnson (CapEx vs. Impact Decarbonization Matrix)**: Classifies emissions reduction options across Capital Expenditure levels (Low/Mid/High CapEx) against strategic impact (Game-Changing vs Incremental) and implementation horizons.

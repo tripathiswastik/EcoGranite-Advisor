@@ -233,6 +233,15 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
         self.assertEqual(invalid_analysis["data_quality"]["reconciliation_status"], "FAILED")
         self.assertIn("[DISQUALIFIED]", invalid_analysis["rating_tier"])
 
+        # 4. India BRSR Core dataset
+        india_path = os.path.join(base_dir, "sample_esg_report_india.json")
+        india_data = self.advisor.load_document(india_path)
+        india_analysis = self.advisor.analyze_compliance(india_data)
+        self.assertEqual(india_analysis["data_quality"]["reconciliation_status"], "PASSED")
+        self.assertIn("Infosys Limited", india_analysis["company_name"])
+        self.assertIn("SEBI BRSR", india_analysis["standards"])
+        self.assertGreaterEqual(india_analysis["esg_readiness_score"], 85.0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -88,8 +88,12 @@ Traditional text extraction tools flatten these tables, misaligning GHG rows wit
    - **Environmental (60 pts)**: Renewable energy (25), YoY reduction (25), Waste diversion (10).
    - **Social (15 pts)**: Gender pay equity (7.5), Supplier code sign-off (7.5).
    - **Governance (15 pts)**: Board gender diversity (7.5), Independent directors (7.5).
-   - **Data Quality (10 pts)**: Scope reconciliation (5), Completeness & zero anomalies (5).
-6. **🧪 Comprehensive Adversarial Test Suite (`test_advisor.py`)**:
+6. **🇮🇳 Indian Statutory ESG Compliance Architecture**:
+   - **SEBI BRSR Core**: Aligned with Circular *SEBI/HO/CFD/CFD-SEC-2/P/CIR/2023/122* mandating reasonable assurance across 9 ESG attributes and Scope 1–3 disclosures for top listed entities.
+   - **Companies Act Section 135**: Audits mandatory 2% CSR spend on average net profits.
+   - **SEBI LODR Regulation 17(1)**: Verifies independent director thresholds (≥50%) and gender diversity.
+   - **Benchmark Dataset (`sample_esg_report_india.json`)**: Models Infosys Limited with 74.8% renewable electricity, 65.4% campus water recycling (Zero Liquid Discharge), and supply chain Scope 3 disclosures.
+7. **🧪 Comprehensive Adversarial Test Suite (`test_advisor.py`)**:
    - 9 automated unit tests validating boundary cases, lower-is-better scoring, missing data, reconciliation failures, and extraction refusal.
 
 ---
@@ -103,9 +107,12 @@ EcoGranite-Advisor/
 ├── esg_parser.py                    # IBM Docling PDF/DOCX bridge, reconciliation & validator
 ├── granite_client.py                # Dual IBM Granite client (WatsonX API + Local Reasoning)
 ├── test_advisor.py                  # Adversarial unit test suite (9 tests)
-├── sample_esg_report.json           # Sample 1: Compliant Leader ESG dataset
-├── sample_esg_report_poor.json      # Sample 2: Poor / Lagging ESG dataset
-├── sample_esg_report_invalid.json   # Sample 3: Incoherent / Reconciliation failure dataset
+├── sample_esg_report.json           # Sample 1: Compliant Leader ESG dataset (EcoGlobal)
+├── sample_esg_report_india.json     # Sample 2: India SEBI BRSR Core dataset (Infosys Limited)
+├── sample_esg_report_siemens.json   # Sample 3: Global Enterprise benchmark (Siemens AG)
+├── sample_esg_report_poor.json      # Sample 4: Poor / Lagging ESG dataset (CarbonHeavy)
+├── sample_esg_report_invalid.json   # Sample 5: Incoherent / Reconciliation failure dataset
+├── ECOGRANITE_FRAMEWORK.md          # 5-Pillar Comprehensive ESG Decarbonization Specification
 ├── requirements.txt                 # Minimal dependencies for Docling, WatsonX, and Streamlit
 └── README.md                        # Challenge documentation & architecture specification
 ```
