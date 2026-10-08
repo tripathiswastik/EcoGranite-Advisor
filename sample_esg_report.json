@@ -1,0 +1,31 @@
+{
+  "company_name": "EcoGlobal Enterprise Corp.",
+  "reporting_year": 2024,
+  "standards": ["GRI", "TCFD", "SASB"],
+  "emissions_metric_tons_co2e": {
+    "scope_1_direct": 14250.0,
+    "scope_2_indirect_market": 8940.0,
+    "scope_3_value_chain": 46300.0,
+    "total_ghg": 69490.0,
+    "target_reduction_2030_pct": 45.0,
+    "achieved_reduction_yoy_pct": 8.4
+  },
+  "renewable_energy": {
+    "total_mwh_consumed": 38400.0,
+    "renewable_mwh": 26880.0,
+    "renewable_share_pct": 70.0,
+    "re100_committed": true
+  },
+  "water_and_waste": {
+    "total_water_withdrawal_m3": 124000.0,
+    "water_recycled_pct": 42.0,
+    "waste_generated_tons": 3200.0,
+    "waste_diverted_from_landfill_pct": 86.5
+  },
+  "social_and_governance": {
+    "female_board_representation_pct": 44.0,
+    "gender_pay_equity_ratio": 0.98,
+    "independent_directors_pct": 80.0,
+    "supplier_code_of_conduct_signoff_pct": 98.2
+  }
+}
