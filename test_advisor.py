@@ -370,7 +370,12 @@ class TestReviewRegressions(unittest.TestCase):
 
     def test_huggingface_key_alone_does_not_enable_live_mode(self) -> None:
         with mock.patch.dict(os.environ, {"HUGGINGFACE_API_KEY": "k", "WATSONX_PROJECT_ID": "p"}):
-            self.assertFalse(GraniteReasoningClient().is_live)
+            client = GraniteReasoningClient()
+            self.assertFalse(client.is_live)
+            self.assertTrue(client.is_hf_live)
+            meta = client.get_runtime_metadata()
+            self.assertEqual(meta["engine"], "huggingface")
+            self.assertIn("Hugging Face Inference API", meta["label"])
 
     def test_oversized_upload_is_refused(self) -> None:
         fake_huge_stream = io.BytesIO(b"0" * (MAX_UPLOAD_BYTES + 1024))

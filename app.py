@@ -384,8 +384,10 @@ with st.sidebar:
     st.caption(f"Docling Bridge: **{'🟢 Native' if DOCLING_AVAILABLE else '🟡 Structural Parser'}**")
     if runtime_meta.get("is_fallback"):
         st.info(f"Granite Mode: **Local Reasoning**\n\n*{runtime_meta.get('fallback_reason')}*")
+    elif runtime_meta.get("engine") == "huggingface":
+        st.success(f"Granite Mode: **Hugging Face Live Inference**\n\n*{model_choice}*")
     else:
-        st.success("Granite Mode: **IBM WatsonX Live API Connected**")
+        st.success(f"Granite Mode: **IBM WatsonX Live API Connected**\n\n*{model_choice}*")
 
 
 # ==========================================

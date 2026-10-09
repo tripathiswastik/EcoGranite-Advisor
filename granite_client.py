@@ -1,7 +1,7 @@
 """
 IBM Granite Reasoning Client
-Supports live inference via IBM WatsonX AI and a deterministic offline
-rule-based reasoning engine when WatsonX credentials are not supplied.
+Supports live inference via IBM WatsonX AI and Hugging Face Inference API,
+with a deterministic offline rule-based reasoning engine as a seamless fallback.
 Exposes engine runtime metadata, catches and reports API errors, and generates structured cards.
 """
 
@@ -15,19 +15,48 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 
+def _load_env_if_present() -> None:
+    """Loads key-value pairs from local .env if present and not already in environment."""
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    if os.path.exists(env_path):
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        k, v = k.strip(), v.strip().strip("'\"")
+                        if k and k not in os.environ:
+                            os.environ[k] = v
+        except Exception as exc:
+            logger.debug("Could not read .env: %s", exc)
+
+
+_load_env_if_present()
+
+
 class GraniteReasoningClient:
     def __init__(self, model_id: str = "ibm-granite/granite-3.0-8b-instruct"):
         self.model_id = model_id
-        self.api_key = os.getenv("WATSONX_APIKEY")  # a HuggingFace key is not valid for WatsonX
+        # WatsonX credentials
+        self.api_key = os.getenv("WATSONX_APIKEY")
         self.project_id = os.getenv("WATSONX_PROJECT_ID")
         self.service_url = os.getenv("WATSONX_URL", "https://us-south.ml.cloud.ibm.com")
-        self.is_live = bool(self.api_key and self.project_id)
+        self.is_watsonx_live = bool(self.api_key and self.project_id)
+
+        # Hugging Face Inference credentials
+        self.hf_key = os.getenv("HUGGINGFACE_API_KEY") or os.getenv("HF_TOKEN")
+        self.is_hf_live = bool(self.hf_key)
+
+        # is_live corresponds specifically to WatsonX live mode per review specifications
+        self.is_live = self.is_watsonx_live
+
         self.last_error: Optional[str] = None
         self.last_reason: Optional[str] = None
 
     def get_runtime_metadata(self) -> dict[str, Any]:
         """Provides runtime engine status and fallback reasons for transparency."""
-        if self.is_live and not self.last_error:
+        if self.is_watsonx_live and not self.last_error:
             return {
                 "engine": "watsonx",
                 "label": "IBM WatsonX Live API",
@@ -35,8 +64,20 @@ class GraniteReasoningClient:
                 "is_fallback": False,
                 "fallback_reason": None
             }
+        elif self.is_hf_live and not self.last_error:
+            return {
+                "engine": "huggingface",
+                "label": f"Hugging Face Inference API ({self.model_id})",
+                "model_id": self.model_id,
+                "is_fallback": False,
+                "fallback_reason": None
+            }
         else:
-            reason = self.last_reason or ("No WatsonX credentials supplied (WATSONX_APIKEY / WATSONX_PROJECT_ID)" if not self.is_live else "Inference error encountered")
+            reason = self.last_reason or (
+                "No API credentials supplied (WATSONX_APIKEY or HUGGINGFACE_API_KEY)"
+                if not (self.is_watsonx_live or self.is_hf_live)
+                else "Inference error encountered (fallback active)"
+            )
             return {
                 "engine": "local",
                 "label": "Local IBM Granite 3.0 Reasoning Engine",
@@ -48,10 +89,11 @@ class GraniteReasoningClient:
 
     def generate_esg_insights(self, audit_summary: dict[str, Any]) -> str:
         """
-        Sends structured audit findings to IBM Granite or uses local deterministic reasoning.
+        Sends structured audit findings to IBM WatsonX, Hugging Face, or uses local deterministic reasoning.
         Captures and reports API failures without silently crashing.
         """
-        if self.is_live:
+        # Provider 1: IBM WatsonX
+        if self.is_watsonx_live:
             try:
                 result = self._call_watsonx_granite(audit_summary)
                 self.last_error = None
@@ -59,10 +101,22 @@ class GraniteReasoningClient:
                 return result
             except Exception as e:
                 logger.exception("WatsonX Granite inference failed")
-                # Exception text may contain URLs or credentials: keep it in logs only.
                 self.last_error = type(e).__name__
                 self.last_reason = f"WatsonX API Exception: {type(e).__name__} (see server log)"
 
+        # Provider 2: Hugging Face Inference API
+        elif self.is_hf_live:
+            try:
+                result = self._call_huggingface_granite(audit_summary)
+                self.last_error = None
+                self.last_reason = None
+                return result
+            except Exception as e:
+                logger.exception("Hugging Face Granite inference failed")
+                self.last_error = type(e).__name__
+                self.last_reason = f"Hugging Face API Exception: {type(e).__name__} (see server log)"
+
+        # Fallback Provider: Local Rule-Based Engine
         return self._local_granite_reasoning(audit_summary)
 
     def _call_watsonx_granite(self, audit_summary: dict[str, Any]) -> str:
@@ -76,8 +130,6 @@ class GraniteReasoningClient:
             GenParams.TOP_P: 0.9,
         }
 
-        # Send only computed metrics: free text from uploaded files (e.g. company
-        # name) is excluded so it cannot inject instructions into the prompt.
         safe_summary = {
             "rating_tier": audit_summary.get("rating_tier"),
             "metrics": audit_summary.get("metrics", {}),
@@ -97,6 +149,65 @@ class GraniteReasoningClient:
         )
 
         return str(model.generate_text(prompt=prompt))
+
+    def _call_huggingface_granite(self, audit_summary: dict[str, Any]) -> str:
+        """Calls Hugging Face Inference Router / Model Endpoint for IBM Granite."""
+        import requests
+
+        safe_summary = {
+            "rating_tier": audit_summary.get("rating_tier"),
+            "metrics": audit_summary.get("metrics", {}),
+            "benchmarks": audit_summary.get("benchmarks", {}),
+        }
+        prompt = (
+            "You are an expert ESG sustainability auditor. Analyze the following corporate metrics "
+            "and synthesize 3 concise, prioritized decarbonization recommendations:\n"
+            f"{json.dumps(safe_summary, indent=2)}"
+        )
+
+        headers = {
+            "Authorization": f"Bearer {self.hf_key}",
+            "Content-Type": "application/json"
+        }
+
+        # Route 1: Modern Chat Completions Router
+        chat_url = "https://router.huggingface.co/hf-inference/v1/chat/completions"
+        payload = {
+            "model": self.model_id,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are an expert ESG sustainability auditor. Analyze corporate metrics and synthesize 3 concise, prioritized decarbonization recommendations."
+                },
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": 500,
+            "temperature": 0.2
+        }
+
+        try:
+            resp = requests.post(chat_url, headers=headers, json=payload, timeout=25)
+            if resp.status_code == 200:
+                data = resp.json()
+                return str(data["choices"][0]["message"]["content"])
+        except Exception as exc:
+            logger.debug("Chat completions router call failed: %s", exc)
+
+        # Route 2: Model Direct Task Endpoint
+        model_url = f"https://router.huggingface.co/hf-inference/models/{self.model_id}"
+        resp2 = requests.post(
+            model_url,
+            headers=headers,
+            json={"inputs": prompt, "parameters": {"max_new_tokens": 500, "temperature": 0.2}},
+            timeout=25
+        )
+        if resp2.status_code != 200:
+            resp2.raise_for_status()
+
+        data2 = resp2.json()
+        if isinstance(data2, list) and len(data2) > 0 and "generated_text" in data2[0]:
+            return str(data2[0]["generated_text"])
+        return str(data2)
 
     def generate_structured_recommendations(self, audit_summary: dict[str, Any]) -> list[dict[str, Any]]:
         """
@@ -272,6 +383,6 @@ class GraniteReasoningClient:
 
         header = "STRATEGIC RECOMMENDATIONS (IBM Granite 3.0 Reasoning):\n"
         if self.last_error:
-            header = f"[Notice: WatsonX API offline ({self.last_reason}) — using local deterministic engine]\n" + header
+            header = f"[Notice: Inference API offline ({self.last_reason}) — using local deterministic engine]\n" + header
 
         return header + "\n".join(f"   {rec}" for rec in recommendations)
