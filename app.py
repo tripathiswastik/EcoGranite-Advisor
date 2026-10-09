@@ -295,6 +295,8 @@ with st.sidebar:
     model_choice = st.selectbox(
         "IBM Granite Foundation Model",
         options=[
+            "ibm-granite/granite-4.2-8b",
+            "ibm-granite/granite-4.2-3b",
             "ibm-granite/granite-3.0-8b-instruct",
             "ibm-granite/granite-3.0-2b-instruct",
             "ibm-granite/granite-guardian-3.0-8b"

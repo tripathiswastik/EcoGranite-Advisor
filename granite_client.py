@@ -114,7 +114,11 @@ class GraniteReasoningClient:
             except Exception as e:
                 logger.exception("Hugging Face Granite inference failed")
                 self.last_error = type(e).__name__
-                self.last_reason = f"Hugging Face API Exception: {type(e).__name__} (see server log)"
+                msg = str(e)
+                if msg.startswith("Hugging Face API"):
+                    self.last_reason = msg
+                else:
+                    self.last_reason = f"Hugging Face API Exception: {type(e).__name__} (see server log)"
 
         # Fallback Provider: Local Rule-Based Engine
         return self._local_granite_reasoning(audit_summary)
@@ -151,7 +155,7 @@ class GraniteReasoningClient:
         return str(model.generate_text(prompt=prompt))
 
     def _call_huggingface_granite(self, audit_summary: dict[str, Any]) -> str:
-        """Calls Hugging Face Inference Router / Model Endpoint for IBM Granite."""
+        """Calls Hugging Face Inference Router for IBM Granite models."""
         import requests
 
         safe_summary = {
@@ -170,44 +174,44 @@ class GraniteReasoningClient:
             "Content-Type": "application/json"
         }
 
-        # Route 1: Modern Chat Completions Router
-        chat_url = "https://router.huggingface.co/hf-inference/v1/chat/completions"
-        payload = {
-            "model": self.model_id,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "You are an expert ESG sustainability auditor. Analyze corporate metrics and synthesize 3 concise, prioritized decarbonization recommendations."
-                },
-                {"role": "user", "content": prompt}
-            ],
-            "max_tokens": 500,
-            "temperature": 0.2
-        }
+        # Candidate models on Hugging Face router
+        models_to_try = [self.model_id]
+        if self.model_id not in ("ibm-granite/granite-4.2-8b", "ibm-granite/granite-4.2-3b"):
+            models_to_try.append("ibm-granite/granite-4.2-8b")
 
-        try:
-            resp = requests.post(chat_url, headers=headers, json=payload, timeout=25)
-            if resp.status_code == 200:
-                data = resp.json()
-                return str(data["choices"][0]["message"]["content"])
-        except Exception as exc:
-            logger.debug("Chat completions router call failed: %s", exc)
+        chat_url = "https://router.huggingface.co/v1/chat/completions"
 
-        # Route 2: Model Direct Task Endpoint
-        model_url = f"https://router.huggingface.co/hf-inference/models/{self.model_id}"
-        resp2 = requests.post(
-            model_url,
-            headers=headers,
-            json={"inputs": prompt, "parameters": {"max_new_tokens": 500, "temperature": 0.2}},
-            timeout=25
-        )
-        if resp2.status_code != 200:
-            resp2.raise_for_status()
+        last_resp_info = None
+        for model_candidate in models_to_try:
+            payload = {
+                "model": model_candidate,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are an expert ESG sustainability auditor. Synthesize 3 concise, prioritized decarbonization recommendations."
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": 500,
+                "temperature": 0.2
+            }
+            try:
+                resp = requests.post(chat_url, headers=headers, json=payload, timeout=25)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return str(data["choices"][0]["message"]["content"])
+                elif resp.status_code == 402:
+                    raise RuntimeError("Hugging Face API (402): Account has no inference credits. Fallback active.")
+                elif resp.status_code == 403:
+                    raise RuntimeError("Hugging Face API (403): Token missing Inference Provider permissions. Fallback active.")
+                else:
+                    last_resp_info = f"Status {resp.status_code}"
+            except (RuntimeError, requests.exceptions.RequestException):
+                raise
+            except Exception as exc:
+                last_resp_info = type(exc).__name__
 
-        data2 = resp2.json()
-        if isinstance(data2, list) and len(data2) > 0 and "generated_text" in data2[0]:
-            return str(data2[0]["generated_text"])
-        return str(data2)
+        raise RuntimeError(f"Hugging Face Inference call failed ({last_resp_info or 'Unknown'})")
 
     def generate_structured_recommendations(self, audit_summary: dict[str, Any]) -> list[dict[str, Any]]:
         """
