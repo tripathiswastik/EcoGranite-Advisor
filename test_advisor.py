@@ -9,67 +9,62 @@ Covers:
 - Dynamic Scope 3 derivation
 - Decoupled AI insight generation and WatsonX error diagnostics
 - End-to-end evaluation on Good, Poor, and Invalid datasets
+- Code review regressions & security verifications (TestReviewRegressions)
 """
 
+from __future__ import annotations
+
 import io
-import json
+import math
 import os
 import unittest
+import zipfile
+from unittest.mock import patch
+
 from advisor_engine import EcoGraniteAdvisor
-from esg_parser import validate_and_normalize_esg, parse_document, extract_esg_from_text
+from esg_parser import (
+    MAX_UPLOAD_BYTES,
+    _Collector,
+    extract_esg_from_text,
+    parse_document,
+    validate_and_normalize_esg,
+)
+from granite_client import GraniteReasoningClient
 
 
 class TestEcoGraniteAdvisor(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
+        # Clear environment credentials for complete test isolation
+        for k in ("WATSONX_APIKEY", "WATSONX_PROJECT_ID", "HUGGINGFACE_API_KEY"):
+            os.environ.pop(k, None)
         self.advisor = EcoGraniteAdvisor()
 
     # =========================================================================
     # 1. Continuous Scoring Mathematics (Both Directions)
     # =========================================================================
-    def test_continuous_scoring_higher_is_better(self):
+    def test_continuous_scoring_higher_is_better(self) -> None:
         """Test proportional scoring where higher values are superior."""
-        # Exact target: 60/60 -> 100% of 25 pts = 25.0
         self.assertEqual(self.advisor.calculate_continuous_score(60.0, 60.0, 25.0, higher_is_better=True), 25.0)
-
-        # Above target: 80/60 -> capped at 100% = 25.0
         self.assertEqual(self.advisor.calculate_continuous_score(80.0, 60.0, 25.0, higher_is_better=True), 25.0)
-
-        # Halfway: 30/60 -> 50% = 12.5
         self.assertEqual(self.advisor.calculate_continuous_score(30.0, 60.0, 25.0, higher_is_better=True), 12.5)
-
-        # Zero value: 0/60 -> 0 pts
         self.assertEqual(self.advisor.calculate_continuous_score(0.0, 60.0, 25.0, higher_is_better=True), 0.0)
-
-        # None value (missing): 0 pts
         self.assertEqual(self.advisor.calculate_continuous_score(None, 60.0, 25.0, higher_is_better=True), 0.0)
-
-        # Zero target:
         self.assertEqual(self.advisor.calculate_continuous_score(10.0, 0.0, 25.0, higher_is_better=True), 25.0)
 
-    def test_continuous_scoring_lower_is_better(self):
+    def test_continuous_scoring_lower_is_better(self) -> None:
         """Test proportional scoring where lower values are superior (e.g. emissions intensity)."""
         target = 100.0
         max_pts = 20.0
-
-        # Exact target: 100 vs target 100 -> full 20 pts
         self.assertEqual(self.advisor.calculate_continuous_score(100.0, target, max_pts, higher_is_better=False), 20.0)
-
-        # Better than target: 50 vs target 100 -> full 20 pts
         self.assertEqual(self.advisor.calculate_continuous_score(50.0, target, max_pts, higher_is_better=False), 20.0)
-
-        # Zero value (best possible performance): 0 vs target 100 -> full 20 pts
         self.assertEqual(self.advisor.calculate_continuous_score(0.0, target, max_pts, higher_is_better=False), 20.0)
-
-        # Worse than target: 200 vs target 100 -> target/value = 100/200 = 50% = 10 pts
         self.assertEqual(self.advisor.calculate_continuous_score(200.0, target, max_pts, higher_is_better=False), 10.0)
-
-        # Extremely poor: 1000 vs target 100 -> 100/1000 = 10% = 2.0 pts
         self.assertEqual(self.advisor.calculate_continuous_score(1000.0, target, max_pts, higher_is_better=False), 2.0)
 
     # =========================================================================
     # 2. Data Integrity: GHG Scope Reconciliation Mismatch
     # =========================================================================
-    def test_ghg_reconciliation_failure_detection(self):
+    def test_ghg_reconciliation_failure_detection(self) -> None:
         """Detect when reported total contradicts Scope 1 + Scope 2 + Scope 3 sum."""
         data = {
             "company_name": "Contradictory Corp",
@@ -77,7 +72,7 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
                 "scope_1_direct": 100.0,
                 "scope_2_indirect_market": 100.0,
                 "scope_3_value_chain": 100.0,
-                "total_ghg": 5000.0  # Contradicts sum of 300!
+                "total_ghg": 5000.0
             }
         }
         normalized = validate_and_normalize_esg(data)
@@ -89,7 +84,6 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
         self.assertEqual(dq["total_ghg_variance"], 4700.0)
         self.assertTrue(any("does not reconcile" in w for w in dq["validation_warnings"]))
 
-        # Analysis must disqualify company from [A] rating
         analysis = self.advisor.analyze_compliance(normalized)
         self.assertIn("[DISQUALIFIED]", analysis["rating_tier"])
         self.assertEqual(analysis["benchmarks"]["GHG Scope Reconciliation (S1+S2+S3 = Total)"]["status"], "Failed Reconciliation")
@@ -97,7 +91,7 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
     # =========================================================================
     # 3. Preserving Anomalies (No Silent Clamping)
     # =========================================================================
-    def test_unclamped_anomalies_recorded_as_warnings(self):
+    def test_unclamped_anomalies_recorded_as_warnings(self) -> None:
         """Ensure values like 135% diversity or renewable MWh > total MWh are flagged."""
         data = {
             "company_name": "Anomalous Disclosures",
@@ -109,50 +103,45 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
             },
             "renewable_energy": {
                 "total_mwh_consumed": 1000.0,
-                "renewable_mwh": 2500.0,  # Exceeds total!
-                "renewable_share_pct": 250.0  # > 100%
+                "renewable_mwh": 2500.0,
+                "renewable_share_pct": 250.0
             },
             "social_and_governance": {
-                "female_board_representation_pct": 135.0  # > 100%
+                "female_board_representation_pct": 135.0
             }
         }
         normalized = validate_and_normalize_esg(data)
         warnings = normalized["data_quality"]["validation_warnings"]
 
-        # Warnings must capture both violations
         self.assertTrue(any("exceeds total" in w for w in warnings))
         self.assertTrue(any("135.0%" in w or "outside" in w for w in warnings))
 
     # =========================================================================
     # 4. Three-State Evaluation & Missing Data Handling
     # =========================================================================
-    def test_three_state_missing_data(self):
+    def test_three_state_missing_data(self) -> None:
         """Ensure missing metrics are labeled Unknown/Unrated, not penalized as zero performance."""
         data = {
             "company_name": "Sparse Reporting LLC",
             "emissions_metric_tons_co2e": {
                 "scope_1_direct": 1000.0,
                 "scope_2_indirect_market": 500.0
-                # Scope 3 and YoY reduction omitted
             },
-            "renewable_energy": {}  # Renewable share omitted
+            "renewable_energy": {}
         }
         normalized = validate_and_normalize_esg(data)
         analysis = self.advisor.analyze_compliance(normalized)
 
-        # Renewable energy benchmark status must be Unknown, not just Failed
         ren_bench = analysis["benchmarks"]["Renewable Energy Share (Target >= 60%)"]
         self.assertEqual(ren_bench["status"], "Unknown (Missing Data)")
         self.assertEqual(ren_bench["risk"], "Unrated")
         self.assertEqual(ren_bench["score"], "0.0/25.0")
-
-        # Completeness should reflect missing fields
         self.assertLess(normalized["data_quality"]["completeness_pct"], 100.0)
 
     # =========================================================================
     # 5. Refusal on Extraction Failure (Never Invent Sample Values)
     # =========================================================================
-    def test_refusal_when_extraction_fails(self):
+    def test_refusal_when_extraction_fails(self) -> None:
         """When an unstructured or empty document has no ESG metrics, refuse to audit."""
         empty_text = "This is a random corporate memo with no greenhouse gas data."
         extracted = extract_esg_from_text(empty_text, "empty_memo.pdf")
@@ -160,16 +149,14 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
         self.assertEqual(extracted["status"], "extraction_failed")
         self.assertGreater(len(extracted["errors"]), 0)
 
-        # Audit engine must refuse to produce a compliance score
         analysis = self.advisor.analyze_compliance(extracted)
         self.assertFalse(analysis["can_audit"])
         self.assertIn("EXTRACTION FAILED", analysis["rating_tier"])
 
-        # Audit report output must report refusal
         report = self.advisor.generate_audit_report(extracted, analysis)
         self.assertIn("AUDIT REFUSAL (EXTRACTION FAILED)", report)
 
-    def test_pdf_binary_stream_refusal(self):
+    def test_pdf_binary_stream_refusal(self) -> None:
         """Binary PDF bytes with no decompressed text must cleanly fail without naive UTF-8 regex fallback."""
         fake_binary_pdf = io.BytesIO(b"%PDF-1.4\x00\x01\x02fake_binary_stream\xff\xfe")
         fake_binary_pdf.name = "unreadable_report.pdf"
@@ -180,7 +167,7 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
     # =========================================================================
     # 6. Dynamic Scope 3 Percentage Derivation
     # =========================================================================
-    def test_dynamic_scope3_percentage(self):
+    def test_dynamic_scope3_percentage(self) -> None:
         """Scope 3 percentage must be mathematically derived from total emissions."""
         data = {
             "company_name": "Test Energy",
@@ -199,7 +186,6 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
         self.assertAlmostEqual(analysis["metrics"]["scope_3_pct"], 80.0, places=1)
         self.assertTrue(analysis["reduction_pass"])
 
-        # Dynamic recommendation test
         report = self.advisor.generate_audit_report(data, analysis)
         self.assertIn("80.0%", report)
         self.assertIn("35.0%", report)
@@ -207,17 +193,18 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
     # =========================================================================
     # 7. Decoupled AI Insights & Transparent Runtime Metadata
     # =========================================================================
-    def test_decoupled_ai_insights_and_runtime_metadata(self):
+    def test_decoupled_ai_insights_and_runtime_metadata(self) -> None:
         """Verify get_runtime_metadata provides transparent diagnostics."""
         meta = self.advisor.granite_client.get_runtime_metadata()
         self.assertIn("engine", meta)
         self.assertIn("label", meta)
-        self.assertTrue(meta["is_fallback"] if not meta.get("is_live") else True)
+        self.assertTrue(meta["is_fallback"])
+        self.assertIn("No WatsonX credentials supplied", meta["fallback_reason"])
 
     # =========================================================================
     # 8. Testing End-to-End Sample Files
     # =========================================================================
-    def test_sample_files_evaluation(self):
+    def test_sample_files_evaluation(self) -> None:
         """Test good, poor, and invalid datasets."""
         base_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -226,20 +213,21 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
         good_data = self.advisor.load_document(good_path)
         good_analysis = self.advisor.analyze_compliance(good_data)
         self.assertEqual(good_analysis["data_quality"]["reconciliation_status"], "PASSED")
-        self.assertGreaterEqual(good_analysis["esg_readiness_score"], 85.0)
+        self.assertEqual(good_analysis["esg_readiness_score"], 100.0)
 
         # 2. Poor dataset
         poor_path = os.path.join(base_dir, "sample_esg_report_poor.json")
         poor_data = self.advisor.load_document(poor_path)
         poor_analysis = self.advisor.analyze_compliance(poor_data)
-        self.assertLess(poor_analysis["esg_readiness_score"], 60.0)
+        self.assertEqual(poor_analysis["esg_readiness_score"], 47.8)
 
-        # 3. Invalid dataset
+        # 3. Invalid dataset (intentional change: 79.9 -> 47.4 via out-of-range rejection)
         invalid_path = os.path.join(base_dir, "sample_esg_report_invalid.json")
         invalid_data = self.advisor.load_document(invalid_path)
         invalid_analysis = self.advisor.analyze_compliance(invalid_data)
         self.assertEqual(invalid_analysis["data_quality"]["reconciliation_status"], "FAILED")
         self.assertIn("[DISQUALIFIED]", invalid_analysis["rating_tier"])
+        self.assertEqual(invalid_analysis["esg_readiness_score"], 47.4)
 
         # 4. India BRSR Core dataset
         india_path = os.path.join(base_dir, "sample_esg_report_india.json")
@@ -248,24 +236,25 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
         self.assertEqual(india_analysis["data_quality"]["reconciliation_status"], "PASSED")
         self.assertIn("Infosys Limited", india_analysis["company_name"])
         self.assertIn("SEBI BRSR", india_analysis["standards"])
-        self.assertGreaterEqual(india_analysis["esg_readiness_score"], 85.0)
+        self.assertEqual(india_analysis["esg_readiness_score"], 99.5)
 
     # =========================================================================
     # 9. v3.0 SASB Sector Weighting & CSRD Double Materiality
     # =========================================================================
-    def test_sasb_sector_weighting_and_double_materiality(self):
+    def test_sasb_sector_weighting_and_double_materiality(self) -> None:
         """Test SASB SICS sector weighting profiles and CSRD double materiality."""
         base_dir = os.path.dirname(os.path.abspath(__file__))
         good_path = os.path.join(base_dir, "sample_esg_report.json")
         good_data = self.advisor.load_document(good_path)
         analysis = self.advisor.analyze_compliance(good_data)
 
-        # 1. Tech Sector weighting (Scope 3 45%)
+        # 1. Tech Sector weighting
         tech_weighted = self.advisor.calculate_sector_weighted_score(analysis, sector="Technology & Software")
         self.assertIn("Scope 3 Value Chain (45%)", tech_weighted["weights"])
         self.assertGreater(tech_weighted["weighted_score"], 80.0)
+        self.assertIn("proxy_note", tech_weighted)
 
-        # 2. Heavy Industry weighting (Scope 1 35%)
+        # 2. Heavy Industry weighting
         heavy_weighted = self.advisor.calculate_sector_weighted_score(analysis, sector="Heavy Industry & Metals")
         self.assertIn("Scope 1 Direct Operations (35%)", heavy_weighted["weights"])
         self.assertGreater(heavy_weighted["weighted_score"], 80.0)
@@ -279,8 +268,8 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
         # 4. Multi-Framework Scorecard
         scorecard = self.advisor.generate_multi_framework_scorecard()
         self.assertEqual(len(scorecard), 3)
-        self.assertTrue(any(c["company_name"] == "Infosys Limited" for c in scorecard))
-        self.assertTrue(any(c["company_name"] == "Siemens AG" for c in scorecard))
+        self.assertTrue(any("Infosys" in c["company_name"] for c in scorecard))
+        self.assertTrue(any("Siemens" in c["company_name"] for c in scorecard))
 
         # 5. Real-Time Framework Toggle (CSRD, ISSB, GRI)
         gri_eval = self.advisor.calculate_framework_score(analysis, framework="GRI Baseline")
@@ -289,11 +278,236 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
 
         csrd_eval = self.advisor.calculate_framework_score(analysis, framework="CSRD (ESRS)")
         self.assertIn("CSRD", csrd_eval["framework"])
-        self.assertLessEqual(csrd_eval["score"], 100.0)  # penalizes if RE < 80%
+        self.assertLessEqual(csrd_eval["score"], 100.0)
 
         issb_eval = self.advisor.calculate_framework_score(analysis, framework="ISSB (IFRS S2)")
         self.assertIn("ISSB", issb_eval["framework"])
         self.assertGreaterEqual(issb_eval["score"], 80.0)
+
+
+class TestReviewRegressions(unittest.TestCase):
+    """
+    Direct regression tests for all 12 code review defects plus safety additions.
+    """
+
+    def setUp(self) -> None:
+        for k in ("WATSONX_APIKEY", "WATSONX_PROJECT_ID", "HUGGINGFACE_API_KEY"):
+            os.environ.pop(k, None)
+        self.advisor = EcoGraniteAdvisor()
+
+    def test_nan_and_inf_are_rejected_not_reconciled(self) -> None:
+        """Issue #3: NaN and inf values are rejected with warning and do not pass reconciliation."""
+        warnings: list[str] = []
+        collector = _Collector(warnings)
+        self.assertIsNone(collector.number(float("nan"), "Test NaN"))
+        self.assertIsNone(collector.number(float("inf"), "Test Inf"))
+        self.assertIsNone(collector.number(True, "Test Bool"))
+        self.assertGreaterEqual(len(warnings), 3)
+
+        payload = {
+            "company_name": "NaN Corp",
+            "emissions_metric_tons_co2e": {
+                "scope_1_direct": float("nan"),
+                "scope_2_indirect_market": 100.0,
+                "total_ghg": 100.0
+            }
+        }
+        normalized = validate_and_normalize_esg(payload)
+        self.assertIn("data_quality", normalized)
+        self.assertTrue(any("non-finite" in w for w in normalized["data_quality"]["validation_warnings"]))
+
+    def test_empty_payload_is_refused(self) -> None:
+        """Issue #4: Empty payload or payload without GHG data returns extraction_failed."""
+        result = validate_and_normalize_esg({})
+        self.assertEqual(result["status"], "extraction_failed")
+        self.assertIn("errors", result)
+
+        analysis = self.advisor.analyze_compliance({})
+        self.assertFalse(analysis["can_audit"])
+        self.assertEqual(analysis["esg_readiness_score"], 0.0)
+        self.assertIn("EXTRACTION FAILED", analysis["rating_tier"])
+
+    def test_missing_total_is_unverified_and_cannot_be_leader(self) -> None:
+        """Issue #5: Missing reported total yields UNVERIFIED status (0 pts) and capped below tier [A]."""
+        payload = {
+            "company_name": "No Total Corp",
+            "emissions_metric_tons_co2e": {
+                "scope_1_direct": 10.0,
+                "scope_2_indirect_market": 10.0,
+                "scope_3_value_chain": 80.0,
+                "achieved_reduction_yoy_pct": 10.0
+                # total_ghg missing!
+            },
+            "renewable_energy": {"renewable_share_pct": 100.0},
+            "water_and_waste": {"waste_diverted_from_landfill_pct": 100.0},
+            "social_and_governance": {
+                "female_board_representation_pct": 100.0,
+                "independent_directors_pct": 100.0,
+                "gender_pay_equity_ratio": 1.0,
+                "supplier_code_of_conduct_signoff_pct": 100.0
+            }
+        }
+        normalized = validate_and_normalize_esg(payload)
+        self.assertEqual(normalized["data_quality"]["reconciliation_status"], "UNVERIFIED")
+
+        analysis = self.advisor.analyze_compliance(normalized)
+        # Even with high scores on other metrics, UNVERIFIED total cannot earn [A]
+        self.assertNotIn("[A]", analysis["rating_tier"])
+        self.assertIn("[B] GOOD (PROGRESSING) (UNVERIFIED TOTAL)", analysis["rating_tier"])
+
+    def test_missing_governance_metrics_get_no_credit(self) -> None:
+        """Issue #4: Missing pay equity, target reduction, etc. remain None and get no credit."""
+        payload = {
+            "company_name": "No Gov Corp",
+            "emissions_metric_tons_co2e": {
+                "scope_1_direct": 100.0,
+                "scope_2_indirect_market": 100.0,
+                "total_ghg": 200.0
+            },
+            "social_and_governance": {}
+        }
+        normalized = validate_and_normalize_esg(payload)
+        gov = normalized["social_and_governance"]
+        self.assertIsNone(gov["gender_pay_equity_ratio"])
+
+        analysis = self.advisor.analyze_compliance(normalized)
+        bench = analysis["benchmarks"]["Gender Pay Equity (Target >= 0.98)"]
+        self.assertEqual(bench["score"], "0.0/7.5")
+        self.assertEqual(bench["status"], "Unknown (Missing Data)")
+
+    def test_report_does_not_crash_when_yoy_missing(self) -> None:
+        """Issue #2: generate_audit_report handles None values without TypeError crash."""
+        payload = {
+            "company_name": "No YoY Corp",
+            "emissions_metric_tons_co2e": {
+                "scope_1_direct": 100.0,
+                "scope_2_indirect_market": 100.0,
+                "total_ghg": 200.0,
+                "achieved_reduction_yoy_pct": None,
+                "target_reduction_2030_pct": None
+            }
+        }
+        normalized = validate_and_normalize_esg(payload)
+        analysis = self.advisor.analyze_compliance(normalized)
+        report = self.advisor.generate_audit_report(normalized, analysis)
+        self.assertIn("N/A", report)
+        self.assertIn("YoY Progress Achieved", report)
+
+    def test_raw_dict_is_normalized_before_scoring(self) -> None:
+        """Issue #1: analyze_compliance auto-normalizes any dict lacking data_quality."""
+        raw_dict = {
+            "company_name": "Raw Ingest Corp",
+            "emissions_metric_tons_co2e": {
+                "scope_1_direct": 50.0,
+                "scope_2_indirect_market": 50.0,
+                "scope_3_value_chain": 100.0,
+                "total_ghg": 200.0
+            },
+            "renewable_energy": {"renewable_share_pct": 70.0}
+        }
+        # Direct call to analyze_compliance without prior parse_document
+        analysis = self.advisor.analyze_compliance(raw_dict)
+        self.assertTrue(analysis["can_audit"])
+        self.assertEqual(analysis["data_quality"]["reconciliation_status"], "PASSED")
+        self.assertNotIn("[DISQUALIFIED]", analysis["rating_tier"])
+
+    def test_malformed_numbers_in_text_do_not_crash(self) -> None:
+        """Issue #6: Malformed numbers like '.' or '1.2.3' in text extraction do not raise ValueError."""
+        text = "Company: Malformed Test\nScope 1: .\nScope 2: 1.2.3\nScope 3: 450.0\nRenewable: 50.0%"
+        extracted = extract_esg_from_text(text, "malformed.txt")
+        self.assertIn("status", extracted)
+
+    def test_out_of_range_percentage_earns_no_points(self) -> None:
+        """Issue #9: Percentage metrics outside 0-100 earn 0 points with Invalid status."""
+        payload = {
+            "company_name": "Out Of Range Corp",
+            "emissions_metric_tons_co2e": {
+                "scope_1_direct": 100.0,
+                "scope_2_indirect_market": 100.0,
+                "total_ghg": 200.0
+            },
+            "renewable_energy": {"renewable_share_pct": 166.7},
+            "social_and_governance": {"female_board_representation_pct": 135.0}
+        }
+        analysis = self.advisor.analyze_compliance(payload)
+        ren_bench = analysis["benchmarks"]["Renewable Energy Share (Target >= 60%)"]
+        self.assertEqual(ren_bench["score"], "0.0/25.0")
+        self.assertEqual(ren_bench["status"], "Invalid (Out of Range)")
+
+        board_bench = analysis["benchmarks"]["Board Diversity (Target >= 40%)"]
+        self.assertEqual(board_bench["score"], "0.0/7.5")
+        self.assertEqual(board_bench["status"], "Invalid (Out of Range)")
+
+    def test_malformed_json_path_returns_failure(self) -> None:
+        """Issue #11: Corrupted or invalid JSON returns extraction_failed instead of unhandled crash."""
+        malformed_stream = io.BytesIO(b'{"company_name": "Broken JSON", "emissions": ')
+        malformed_stream.name = "broken.json"
+        result = parse_document(malformed_stream)
+        self.assertEqual(result["status"], "extraction_failed")
+        self.assertTrue(any("Malformed JSON" in e for e in result["errors"]))
+
+    def test_docx_with_entity_declaration_is_refused(self) -> None:
+        """Issue #11: DOCX containing <!ENTITY or <!DOCTYPE is rejected to prevent XML bomb / XXE."""
+        docx_buffer = io.BytesIO()
+        with zipfile.ZipFile(docx_buffer, "w") as zf:
+            malicious_xml = b'<?xml version="1.0"?><!DOCTYPE test [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:t>&xxe;</w:t></w:p></w:document>'
+            zf.writestr("word/document.xml", malicious_xml)
+        docx_buffer.name = "xxe_exploit.docx"
+        docx_buffer.seek(0)
+
+        result = parse_document(docx_buffer)
+        self.assertEqual(result["status"], "extraction_failed")
+        self.assertTrue(any("refused" in e or "entity" in e.lower() for e in result["errors"]))
+
+    def test_scorecard_is_computed_not_hardcoded(self) -> None:
+        """Issue #8: Multi-framework scorecard is dynamically computed from sample files."""
+        scorecard = self.advisor.generate_multi_framework_scorecard()
+        self.assertEqual(len(scorecard), 3)
+
+        ecoglobal = next(s for s in scorecard if "EcoGlobal" in s["company_name"])
+        siemens = next(s for s in scorecard if "Siemens" in s["company_name"])
+        infosys = next(s for s in scorecard if "Infosys" in s["company_name"])
+
+        self.assertIn("95", ecoglobal["csrd_esrs_score"])
+        self.assertIn("99", siemens["csrd_esrs_score"])
+        self.assertIn("97", infosys["csrd_esrs_score"])
+        self.assertEqual(ecoglobal["sebi_brsr_status"], "Not assessed")
+
+    def test_huggingface_key_alone_does_not_enable_live_mode(self) -> None:
+        """Issue #12: HUGGINGFACE_API_KEY alone does not trigger live mode for WatsonX client."""
+        os.environ["HUGGINGFACE_API_KEY"] = "hf_test_dummy_key"
+        client = GraniteReasoningClient()
+        self.assertFalse(client.is_live)
+        meta = client.get_runtime_metadata()
+        self.assertTrue(meta["is_fallback"])
+        self.assertEqual(meta["engine"], "local")
+
+    def test_oversized_upload_is_refused(self) -> None:
+        """Issue #11: Documents exceeding MAX_UPLOAD_BYTES are rejected safely."""
+        fake_huge_stream = io.BytesIO(b"0" * (MAX_UPLOAD_BYTES + 1024))
+        fake_huge_stream.name = "huge_file.json"
+        result = parse_document(fake_huge_stream)
+        self.assertEqual(result["status"], "extraction_failed")
+        self.assertTrue(any("exceeds maximum" in e for e in result["errors"]))
+
+    def test_mocked_watsonx_failure_sanitizes_reason(self) -> None:
+        """Issue #12: WatsonX failure messages shown in UI contain exception class only, not credential details."""
+        client = GraniteReasoningClient()
+        client.is_live = True
+        client.api_key = "secret_apikey_token_xyz"
+        client.project_id = "project_id_123"
+
+        with patch.object(client, "_call_watsonx_granite", side_effect=ConnectionError("Failed connection to https://us-south.ml.cloud.ibm.com/v1/token?key=secret_apikey_token_xyz")):
+            summary = {
+                "metrics": {"total_ghg": 100.0, "scope_1": 50.0, "scope_2": 50.0, "scope_3": 0.0},
+                "benchmarks": {},
+                "data_quality": {"reconciliation_status": "PASSED"}
+            }
+            client.generate_esg_insights(summary)
+            meta = client.get_runtime_metadata()
+            self.assertTrue(meta["is_fallback"])
+            self.assertNotIn("secret_apikey_token_xyz", meta["fallback_reason"])
+            self.assertIn("ConnectionError", meta["fallback_reason"])
 
 
 if __name__ == "__main__":

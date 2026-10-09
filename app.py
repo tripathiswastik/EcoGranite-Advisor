@@ -4,6 +4,7 @@ Autonomous Corporate Sustainability & Decarbonization Audit Engine.
 Powered by IBM Granite 3.0 Reasoning & IBM Docling Document Parsing.
 """
 
+import html
 import json
 import logging
 import os
@@ -265,12 +266,11 @@ def get_advisor(model_id: str) -> EcoGraniteAdvisor:
 
 
 def load_dataset_file(filename: str) -> Dict[str, Any]:
-    """Helper to load a JSON dataset from disk."""
+    """Helper to load a normalized ESG dataset from disk."""
     base_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(base_dir, filename)
     if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+        return parse_document(path)
     return {"company_name": "Sample Entity", "status": "extraction_failed", "errors": ["File not found"]}
 
 
@@ -416,11 +416,11 @@ if not analysis.get("can_audit", True):
 # ==========================================
 # Successful Audit Display
 # ==========================================
-company_name = analysis.get("company_name", "Unknown Entity")
-reporting_year = analysis.get("reporting_year", 2024)
-standards_list = analysis.get("standards", ["GRI", "TCFD", "SASB"])
-country = analysis.get("country", "")
-jurisdiction = analysis.get("jurisdiction", "")
+company_name = html.escape(str(analysis.get("company_name", "Unknown Entity")))
+reporting_year = html.escape(str(analysis.get("reporting_year") or "N/A"))
+standards_list = [html.escape(str(s)) for s in (analysis.get("standards") or ["GRI", "TCFD", "SASB"])]
+country = html.escape(str(analysis.get("country", "")))
+jurisdiction = html.escape(str(analysis.get("jurisdiction", "")))
 m = analysis["metrics"]
 benchmarks = analysis["benchmarks"]
 pillars = analysis.get("pillars", {})
@@ -436,7 +436,7 @@ active_tier = fw_eval["tier"]
 # Header
 st.markdown(
     f"<div class='hero-title'>EcoGranite-Advisor: ESG Sustainability Auditor</div>"
-    f"<span class='badge-pill badge-granite'>{fw_eval['framework']} Active</span>",
+    f"<span class='badge-pill badge-granite'>{html.escape(str(fw_eval['framework']))} Active</span>",
     unsafe_allow_html=True
 )
 country_flag = "🇮🇳 " if "India" in country else ("🇩🇪 " if "Germany" in country else "")
@@ -658,12 +658,12 @@ with tab_exec:
         st.markdown(f"""
         <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:1.2rem; border-left:5px solid #3B82F6;">
             <div style="font-size:0.85rem; font-weight:700; color:#64748B; text-transform:uppercase;">Selected Sector Profile</div>
-            <div style="font-size:1.35rem; font-weight:800; color:#0F172A; font-family:'Outfit', sans-serif;">{sec_res['sector']}</div>
+            <div style="font-size:1.35rem; font-weight:800; color:#0F172A; font-family:'Outfit', sans-serif;">{html.escape(str(sec_res['sector']))}</div>
             <div style="margin-top:0.6rem; font-size:1.6rem; font-weight:800; color:#2563EB;">
                 {sec_res['weighted_score']:.1f}<span style="font-size:1rem; color:#64748B;"> / 100</span>
             </div>
             <div style="font-size:0.82rem; color:#475569; margin-top:0.3rem;">
-                Standard: <i>{sec_res.get('alignment', 'SASB SICS')}</i>
+                Standard: <i>{html.escape(str(sec_res.get('alignment', 'SASB SICS')))}</i>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -912,10 +912,14 @@ with tab_resources:
             st.markdown("---")
             st.markdown("#### 🇮🇳 Indian Statutory Mandates (Companies Act 2013 & SEBI)")
             ic1, ic2 = st.columns(2)
+            csr_spend = m.get("csr_spend_pct_net_profit")
+            csr_display = f"{csr_spend:.2f}% of Net Profit" if csr_spend is not None else "Not disclosed"
+            zld = m.get("zero_liquid_discharge")
+            zld_display = ("Active (Zero Liquid Discharge)" if zld else "Not achieved") if zld is not None else "Not disclosed"
             with ic1:
-                st.metric("Sec. 135 CSR Spend", "2.05% of Net Profit", delta="Mandate: ≥ 2.0%")
+                st.metric("Sec. 135 CSR Spend", csr_display, delta="Mandate: ≥ 2.0%" if csr_spend is not None else None)
             with ic2:
-                st.metric("Water Neutrality / ZLD", f"{m.get('water_recycled_pct', 0.0):.1f}% Recycled", delta="Zero Liquid Discharge")
+                st.metric("Water Neutrality / ZLD", zld_display, delta="Zero Liquid Discharge" if zld else None)
 
         if dq.get("validation_warnings"):
             st.markdown("---")
@@ -985,13 +989,7 @@ with tab_granite:
 
     # 8-Step Decarbonization Workflow Stepper
     with st.expander("🧭 EcoGranite 8-Step Enterprise Decarbonization Workflow (Interactive Stepper)"):
-        if hasattr(advisor, "get_eight_step_roadmap"):
-            eight_steps = advisor.get_eight_step_roadmap()
-        elif hasattr(advisor, "granite_client") and hasattr(advisor.granite_client, "get_eight_step_roadmap"):
-            eight_steps = advisor.granite_client.get_eight_step_roadmap()
-        else:
-            from granite_client import GraniteReasoningClient
-            eight_steps = GraniteReasoningClient().get_eight_step_roadmap()
+        eight_steps = advisor.get_eight_step_roadmap()
         for s in eight_steps:
             st.markdown(f"""
             <div class="step-box">
