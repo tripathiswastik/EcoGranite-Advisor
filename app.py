@@ -4,12 +4,12 @@ Autonomous Corporate Sustainability & Decarbonization Audit Engine.
 Powered by IBM Granite 3.0 Reasoning & IBM Docling Document Parsing.
 """
 
+from __future__ import annotations
+
 import html
 import json
-import logging
 import os
-import sys
-from typing import Dict, Any
+from typing import Any
 
 try:
     import streamlit as st  # type: ignore
@@ -19,7 +19,7 @@ try:
 except ImportError as e:
     raise ImportError(
         f"Required UI packages missing ({e}). Run: pip install streamlit pandas plotly"
-    )
+    ) from e
 
 from advisor_engine import EcoGraniteAdvisor
 from esg_parser import parse_document, DOCLING_AVAILABLE
@@ -265,12 +265,13 @@ def get_advisor(model_id: str) -> EcoGraniteAdvisor:
     return EcoGraniteAdvisor(model_id=model_id)
 
 
-def load_dataset_file(filename: str) -> Dict[str, Any]:
-    """Helper to load a normalized ESG dataset from disk."""
+def load_dataset_file(filename: str) -> dict[str, Any]:
+    """Helper to load a JSON dataset from disk."""
     base_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(base_dir, filename)
     if os.path.exists(path):
-        return parse_document(path)
+        with open(path, "r", encoding="utf-8") as f:
+            return parse_document(json.load(f))
     return {"company_name": "Sample Entity", "status": "extraction_failed", "errors": ["File not found"]}
 
 
@@ -395,12 +396,12 @@ analysis = advisor.analyze_compliance(raw_data)
 if not analysis.get("can_audit", True):
     # REFUSAL STATE: Refuse to invent fake numbers!
     st.markdown(
-        f"<div class='hero-title'>EcoGranite-Advisor</div>"
-        f"<span class='badge-pill badge-refusal'>Audit Refused</span>",
+        "<div class='hero-title'>EcoGranite-Advisor</div>"
+        "<span class='badge-pill badge-refusal'>Audit Refused</span>",
         unsafe_allow_html=True
     )
     st.error("🚨 **Pre-Audit Extraction Refusal**: The ingested document does not contain readable statutory ESG disclosures.")
-    
+
     st.markdown(f"**Entity Reference**: `{analysis.get('company_name', 'Unknown')}`")
     st.markdown("### Missing / Failed Disclosure Fields:")
     for err in analysis.get("errors", []):
@@ -416,11 +417,11 @@ if not analysis.get("can_audit", True):
 # ==========================================
 # Successful Audit Display
 # ==========================================
-company_name = html.escape(str(analysis.get("company_name", "Unknown Entity")))
-reporting_year = html.escape(str(analysis.get("reporting_year") or "N/A"))
-standards_list = [html.escape(str(s)) for s in (analysis.get("standards") or ["GRI", "TCFD", "SASB"])]
-country = html.escape(str(analysis.get("country", "")))
-jurisdiction = html.escape(str(analysis.get("jurisdiction", "")))
+company_name = analysis.get("company_name", "Unknown Entity")
+reporting_year = analysis.get("reporting_year", "N/A")
+standards_list = analysis.get("standards") or []
+country = analysis.get("country", "")
+jurisdiction = analysis.get("jurisdiction", "")
 m = analysis["metrics"]
 benchmarks = analysis["benchmarks"]
 pillars = analysis.get("pillars", {})
@@ -436,20 +437,23 @@ active_tier = fw_eval["tier"]
 # Header
 st.markdown(
     f"<div class='hero-title'>EcoGranite-Advisor: ESG Sustainability Auditor</div>"
-    f"<span class='badge-pill badge-granite'>{html.escape(str(fw_eval['framework']))} Active</span>",
+    f"<span class='badge-pill badge-granite'>{fw_eval['framework']} Active</span>",
     unsafe_allow_html=True
 )
 country_flag = "🇮🇳 " if "India" in country else ("🇩🇪 " if "Germany" in country else "")
-country_str = f" | {country_flag}{country}" if country else ""
+country_str = f" | {country_flag}{html.escape(country)}" if country else ""
 st.markdown(
     f"<div class='hero-subtitle'>Corporate Sustainability & Decarbonization Audit Engine{country_str} | "
-    f"<b>{company_name}</b> (FY {reporting_year}) — Frameworks: {', '.join(standards_list)}</div>",
+    f"<b>{html.escape(str(company_name))}</b> (FY {html.escape(str(reporting_year))}) — "
+    f"Frameworks: {html.escape(', '.join(standards_list) or 'Not disclosed')}</div>",
     unsafe_allow_html=True
 )
 
 # Reconciliation Failure Banner
 recon_status = dq.get("reconciliation_status", "UNKNOWN")
-if recon_status != "PASSED":
+if recon_status == "UNVERIFIED":
+    st.warning("⚠️ **GHG totals unverified**: no reported total was disclosed, so Scope 1+2+3 could not be reconciled.")
+elif recon_status != "PASSED":
     st.error(
         f"🚨 **Data Reconciliation Failure**: Scope 1+2+3 sum ({dq.get('calculated_total_ghg', 0):,.1f} MT) "
         f"does not reconcile with reported total GHG ({dq.get('reported_total_ghg', 0):,.1f} MT). "
@@ -658,12 +662,12 @@ with tab_exec:
         st.markdown(f"""
         <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:1.2rem; border-left:5px solid #3B82F6;">
             <div style="font-size:0.85rem; font-weight:700; color:#64748B; text-transform:uppercase;">Selected Sector Profile</div>
-            <div style="font-size:1.35rem; font-weight:800; color:#0F172A; font-family:'Outfit', sans-serif;">{html.escape(str(sec_res['sector']))}</div>
+            <div style="font-size:1.35rem; font-weight:800; color:#0F172A; font-family:'Outfit', sans-serif;">{html.escape(sec_res['sector'])}</div>
             <div style="margin-top:0.6rem; font-size:1.6rem; font-weight:800; color:#2563EB;">
                 {sec_res['weighted_score']:.1f}<span style="font-size:1rem; color:#64748B;"> / 100</span>
             </div>
             <div style="font-size:0.82rem; color:#475569; margin-top:0.3rem;">
-                Standard: <i>{html.escape(str(sec_res.get('alignment', 'SASB SICS')))}</i>
+                Standard: <i>{html.escape(sec_res.get('alignment', 'SASB SICS'))}</i>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -706,7 +710,7 @@ with tab_exec:
             y=[f_risk],
             mode="markers+text",
             marker=dict(size=18, color="#1E40AF", line=dict(width=2, color="#FFFFFF")),
-            text=[company_name.split()[0]],
+            text=[str(company_name).split()[0] if str(company_name).split() else "Entity"],
             textposition="top center",
             name="Audited Entity"
         ))
@@ -906,20 +910,22 @@ with tab_resources:
         st.markdown(f"**Supplier Code of Conduct Sign-off**: `{supplier_code:.1f}%` (Benchmark: ≥95%)")
         st.progress(min(1.0, max(0.0, supplier_code / 100.0)))
 
-        st.markdown(f"**Gender Pay Equity Ratio**: `{m.get('gender_pay_equity_ratio', 1.0):.2f} : 1.00`")
+        st.markdown(f"**Gender Pay Equity Ratio**: `{'Not disclosed' if m.get('gender_pay_equity_ratio') is None else format(m['gender_pay_equity_ratio'], '.2f') + ' : 1.00'}`")
 
         if "India" in country or any("SEBI" in s for s in standards_list):
             st.markdown("---")
             st.markdown("#### 🇮🇳 Indian Statutory Mandates (Companies Act 2013 & SEBI)")
             ic1, ic2 = st.columns(2)
-            csr_spend = m.get("csr_spend_pct_net_profit")
-            csr_display = f"{csr_spend:.2f}% of Net Profit" if csr_spend is not None else "Not disclosed"
+            csr_pct = m.get("csr_spend_pct_net_profit")
             zld = m.get("zero_liquid_discharge")
-            zld_display = ("Active (Zero Liquid Discharge)" if zld else "Not achieved") if zld is not None else "Not disclosed"
             with ic1:
-                st.metric("Sec. 135 CSR Spend", csr_display, delta="Mandate: ≥ 2.0%" if csr_spend is not None else None)
+                if csr_pct is None:
+                    st.metric("Sec. 135 CSR Spend", "Not disclosed")
+                else:
+                    st.metric("Sec. 135 CSR Spend", f"{csr_pct:.2f}% of Net Profit", delta="Mandate: ≥ 2.0%")
             with ic2:
-                st.metric("Water Neutrality / ZLD", zld_display, delta="Zero Liquid Discharge" if zld else None)
+                zld_label = {True: "Zero Liquid Discharge", False: "No ZLD", None: "ZLD not disclosed"}[zld]
+                st.metric("Water Recycling", f"{m.get('water_recycled_pct', 0.0):.1f}% Recycled", delta=zld_label)
 
         if dq.get("validation_warnings"):
             st.markdown("---")
@@ -989,8 +995,7 @@ with tab_granite:
 
     # 8-Step Decarbonization Workflow Stepper
     with st.expander("🧭 EcoGranite 8-Step Enterprise Decarbonization Workflow (Interactive Stepper)"):
-        eight_steps = advisor.get_eight_step_roadmap()
-        for s in eight_steps:
+        for s in advisor.get_eight_step_roadmap():
             st.markdown(f"""
             <div class="step-box">
                 <div class="step-num-pill">{s['step']}</div>
@@ -1037,6 +1042,8 @@ with tab_granite:
     with st.expander("📄 View Full Audit Report (Text/CLI format)"):
         st.code(full_text_report, language="text")
 
+    safe_name = "".join(c if c.isalnum() else "_" for c in str(company_name))[:60]
+
     # Download action buttons
     st.markdown("#### 📥 Export Audit Deliverables")
     dl_col1, dl_col2 = st.columns(2)
@@ -1045,7 +1052,7 @@ with tab_granite:
         st.download_button(
             label="Download ESG Audit Report (.txt)",
             data=full_text_report,
-            file_name=f"EcoGranite_Audit_{company_name.replace(' ', '_')}_{reporting_year}.txt",
+            file_name=f"EcoGranite_Audit_{safe_name}_{reporting_year}.txt",
             mime="text/plain",
             use_container_width=True
         )
@@ -1054,7 +1061,7 @@ with tab_granite:
         st.download_button(
             label="Download Normalized Schema (.json)",
             data=json.dumps(analysis, indent=2),
-            file_name=f"EcoGranite_Normalized_{company_name.replace(' ', '_')}_{reporting_year}.json",
+            file_name=f"EcoGranite_Normalized_{safe_name}_{reporting_year}.json",
             mime="application/json",
             use_container_width=True
         )
