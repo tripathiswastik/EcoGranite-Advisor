@@ -21,6 +21,7 @@ import tempfile
 import unittest
 import zipfile
 from unittest import mock
+from typing import Any
 
 from advisor_engine import EcoGraniteAdvisor
 from esg_parser import (
@@ -123,13 +124,14 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
     # =========================================================================
     def test_three_state_missing_data(self) -> None:
         """Ensure missing metrics are labeled Unknown/Unrated, not penalized as zero performance."""
-        data = {
+        empty_energy: dict[str, Any] = {}
+        data: dict[str, Any] = {
             "company_name": "Sparse Reporting LLC",
             "emissions_metric_tons_co2e": {
                 "scope_1_direct": 1000.0,
                 "scope_2_indirect_market": 500.0
             },
-            "renewable_energy": {}
+            "renewable_energy": empty_energy
         }
         normalized = validate_and_normalize_esg(data)
         analysis = self.advisor.analyze_compliance(normalized)
@@ -385,14 +387,16 @@ class TestReviewRegressions(unittest.TestCase):
         self.assertTrue(any("exceeds" in e for e in result["errors"]))
 
 
-def _fake_response(status: int, body: dict | None = None) -> mock.Mock:
+def _fake_response(status: int, body: dict[str, Any] | None = None) -> mock.Mock:
     response = mock.Mock()
     response.status_code = status
-    response.json.return_value = body or {}
+    empty_body: dict[str, Any] = {}
+    response.json.return_value = body if body is not None else empty_body
     return response
 
 
-SUMMARY = {"rating_tier": "x", "metrics": {"total_ghg": 10.0, "scope_3_pct": 60.0}, "benchmarks": {}}
+empty_benchmarks: dict[str, Any] = {}
+SUMMARY: dict[str, Any] = {"rating_tier": "x", "metrics": {"total_ghg": 10.0, "scope_3_pct": 60.0}, "benchmarks": empty_benchmarks}
 
 
 class TestHuggingFaceProvider(unittest.TestCase):
@@ -418,7 +422,7 @@ class TestHuggingFaceProvider(unittest.TestCase):
         self.assertFalse(client.get_runtime_metadata()["is_fallback"])
 
     def test_null_or_empty_content_falls_back_instead_of_printing_none(self) -> None:
-        body = {"choices": [{"message": {"content": None}}]}
+        body: dict[str, Any] = {"choices": [{"message": {"content": None}}]}
         client, text, post = self._run([_fake_response(200, body)] * 3)
         self.assertNotIn("None", text.splitlines()[0] if text else "")
         self.assertIn("STRATEGIC RECOMMENDATIONS", text)
@@ -495,7 +499,7 @@ class TestMethodologyHardeningAndReliability(unittest.TestCase):
         self.assertEqual(len(res_fail["penalties"]), 1)
 
     def test_deeply_nested_json_is_rejected(self) -> None:
-        nested: dict = {"data": "deep"}
+        nested: dict[str, Any] = {"data": "deep"}
         for _ in range(20):
             nested = {"child": nested}
         stream = io.BytesIO(json.dumps(nested).encode("utf-8"))
