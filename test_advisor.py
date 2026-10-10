@@ -21,7 +21,7 @@ import tempfile
 import unittest
 import zipfile
 from unittest import mock
-from typing import Any
+from typing import Any, Optional
 
 from advisor_engine import EcoGraniteAdvisor
 from esg_parser import (
@@ -605,16 +605,17 @@ class TestMethodologyHardeningAndReliability(unittest.TestCase):
 
     def test_evaluate_double_materiality_with_none_metrics(self) -> None:
         """Verifies that missing metrics (e.g. water_recycled_pct=None) do not raise TypeError."""
-        mock_analysis = {
+        mock_metrics: dict[str, Optional[float]] = {
+            "renewable_pct": None,
+            "scope_3_pct": None,
+            "total_ghg": None,
+            "waste_diverted_pct": None,
+            "water_recycled_pct": None,
+        }
+        mock_analysis: dict[str, Any] = {
             "can_audit": True,
-            "metrics": {
-                "renewable_pct": None,
-                "scope_3_pct": None,
-                "total_ghg": None,
-                "waste_diverted_pct": None,
-                "water_recycled_pct": None,
-            },
-            "data_quality": {"reconciliation_status": "PASSED"}
+            "metrics": mock_metrics,
+            "data_quality": {"reconciliation_status": "PASSED"},
         }
         dm = self.advisor.evaluate_double_materiality(mock_analysis)
         self.assertIn("financial_risk_score", dm)
