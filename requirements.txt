@@ -2,7 +2,7 @@
 docling>=2.0.0
 
 # IBM WatsonX & Granite Foundation Models
-# ibm-watsonx-ai>=1.1.0  # Optional: install for direct IBM WatsonX Cloud SDK (requires Python >=3.10, <3.13)
+# ibm-watsonx-ai>=1.1.0  # Not available on public PyPI (optional for private enterprise environments)
 huggingface-hub>=0.23.0
 pydantic>=2.0.0
 
