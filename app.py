@@ -346,11 +346,8 @@ with st.sidebar:
         options=[
             "📗 Sample: EcoGlobal Enterprise (Good/Compliant)",
             "🇮🇳 India: Infosys Limited (SEBI BRSR Core Mandate)",
-            "🏢 Benchmark: Siemens AG (Global Enterprise - DEGREE)",
             "📙 Sample: CarbonHeavy Corp (Lagging/Poor)",
             "📕 Sample: Incoherent Disclosures (Reconciliation Failure)",
-            "📄 Text: Standard Terminology (sample_disclosure_standard.txt)",
-            "📄 Text: Non-Standard Synonyms (sample_disclosure_synonyms.txt)",
             "📁 Upload Custom File (.json, .pdf, .docx, .txt)"
         ],
         index=0
@@ -361,16 +358,10 @@ with st.sidebar:
         raw_data = load_dataset_file("sample_esg_report.json")
     elif data_source_mode == "🇮🇳 India: Infosys Limited (SEBI BRSR Core Mandate)":
         raw_data = load_dataset_file("sample_esg_report_india.json")
-    elif data_source_mode == "🏢 Benchmark: Siemens AG (Global Enterprise - DEGREE)":
-        raw_data = load_dataset_file("sample_esg_report_siemens.json")
     elif data_source_mode == "📙 Sample: CarbonHeavy Corp (Lagging/Poor)":
         raw_data = load_dataset_file("sample_esg_report_poor.json")
     elif data_source_mode == "📕 Sample: Incoherent Disclosures (Reconciliation Failure)":
         raw_data = load_dataset_file("sample_esg_report_invalid.json")
-    elif data_source_mode == "📄 Text: Standard Terminology (sample_disclosure_standard.txt)":
-        raw_data = load_dataset_file("sample_disclosure_standard.txt")
-    elif data_source_mode == "📄 Text: Non-Standard Synonyms (sample_disclosure_synonyms.txt)":
-        raw_data = load_dataset_file("sample_disclosure_synonyms.txt")
     else:
         uploaded_file = st.file_uploader(
             "Upload Corporate Disclosure (.json, .pdf, .docx, .txt)",

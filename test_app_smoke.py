@@ -66,7 +66,6 @@ class TestAppStreamlitSmoke(unittest.TestCase):
         options = [
             "📗 Sample: EcoGlobal Enterprise (Good/Compliant)",
             "🇮🇳 India: Infosys Limited (SEBI BRSR Core Mandate)",
-            "🏢 Benchmark: Siemens AG (Global Enterprise - DEGREE)",
             "📙 Sample: CarbonHeavy Corp (Lagging/Poor)",
             "📕 Sample: Incoherent Disclosures (Reconciliation Failure)",
         ]
