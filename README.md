@@ -149,7 +149,7 @@ EcoGranite-Advisor supports three tiered execution modes for IBM Granite foundat
    - Direct cloud inference for IBM Granite models (e.g. `ibm-granite/granite-4.2-8b`, `ibm-granite/granite-4.2-3b`, `ibm-granite/granite-3.0-8b-instruct`).
    - Requires fine-grained token with `inference.serverless.write` permission.
 2. **IBM WatsonX AI** (`WATSONX_APIKEY` & `WATSONX_PROJECT_ID`):
-   - Direct enterprise foundation model inference via IBM WatsonX Cloud SDK (`ibm-watsonx-ai`).
+   - Direct enterprise foundation model inference via IBM WatsonX Cloud SDK (`pip install ibm-watsonx-ai`, optional, supports Python 3.10–3.12).
 3. **Local Deterministic Reasoning Engine (Offline Fallback)**:
    - Always available with zero API keys or network connection required.
    - Evaluates disclosures against GHG Protocol math and generates auditable prioritized recommendations.
