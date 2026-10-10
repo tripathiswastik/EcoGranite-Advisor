@@ -16,6 +16,18 @@ _env
 .mypy_cache/
 .ruff_cache/
 
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Packaging & Release Artifacts
+dist/
+build/
+*.egg-info/
+*.zip
+
 # IDE & Editor Settings
 .vscode/
 .idea/

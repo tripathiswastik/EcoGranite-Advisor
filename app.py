@@ -470,6 +470,14 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+st.markdown(
+    "<div style='background:#F8FAFC; border:1px solid #E2E8F0; border-left:4px solid #64748B; "
+    "border-radius:8px; padding:7px 14px; margin-bottom:12px; font-size:0.81rem; color:#475569;'>"
+    "ℹ️ <b>Methodology Notice:</b> Scores represent internal diagnostic readiness screening proxies. "
+    "Does not constitute legal compliance certification or third-party statutory assurance.</div>",
+    unsafe_allow_html=True
+)
+
 # Reconciliation Failure Banner
 recon_status = dq.get("reconciliation_status", "UNKNOWN")
 if recon_status == "UNVERIFIED":
@@ -668,6 +676,15 @@ with tab_exec:
         })
     df_bench = pd.DataFrame(bench_rows)
     safe_dataframe(df_bench)
+
+    with st.expander("🔍 Reconciliation Evidence & Accounting Assumptions"):
+        rec_ev = analysis.get("reconciliation_evidence", {})
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Reported Total", f"{rec_ev.get('reported_total_ghg') or 0:,.1f} MT" if rec_ev.get('reported_total_ghg') is not None else "Not Reported")
+        c2.metric("Calculated Scope 1+2+3", f"{rec_ev.get('calculated_total_ghg') or 0:,.1f} MT")
+        c3.metric("Reconciliation Status", rec_ev.get("reconciliation_status", "UNKNOWN"), delta=f"Variance: {rec_ev.get('variance_mt', 0.0):.1f} MT")
+        st.markdown(f"• **Tolerance**: `{rec_ev.get('tolerance_mt', 0.0):.1f} MT` | **Scope 2 Basis**: `Market-based` | **Boundary**: `Operational Control`")
+        st.caption(f"Audit Timestamp: `{analysis.get('audit_timestamp', 'N/A')}` | Methodology: `{analysis.get('methodology_version', 'N/A')}`")
 
     # ==========================================
     # v3.0: SASB SICS Sector Materiality Weighting

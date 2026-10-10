@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,8 @@ WATSONX_MAX_TOKENS = 500
 REQUEST_TIMEOUT_S = 20
 HF_CHAT_URL = "https://router.huggingface.co/v1/chat/completions"
 HF_FALLBACK_MODELS = ("ibm-granite/granite-4.2-8b", "ibm-granite/granite-4.2-3b")
+MAX_RETRIES = 2
+INITIAL_BACKOFF_S = 0.2
 
 
 def load_environment() -> None:
@@ -184,7 +187,22 @@ class GraniteReasoningClient:
         for model_name in candidates:
             payload = {"model": model_name, "messages": messages,
                        "max_tokens": HF_MAX_TOKENS, "temperature": 0.2}
-            response = requests.post(HF_CHAT_URL, headers=headers, json=payload, timeout=REQUEST_TIMEOUT_S)
+            response = None
+            for attempt in range(MAX_RETRIES + 1):
+                try:
+                    response = requests.post(HF_CHAT_URL, headers=headers, json=payload, timeout=REQUEST_TIMEOUT_S)
+                    if response.status_code in (429, 500, 502, 503, 504) and attempt < MAX_RETRIES:
+                        time.sleep(INITIAL_BACKOFF_S * (2 ** attempt))
+                        continue
+                    break
+                except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+                    if attempt < MAX_RETRIES:
+                        time.sleep(INITIAL_BACKOFF_S * (2 ** attempt))
+                        continue
+                    raise
+            if response is None:
+                last_status = "No response"
+                continue
             if response.status_code == 200:
                 text = self._extract_chat_text(response.json())
                 if text:
@@ -192,7 +210,7 @@ class GraniteReasoningClient:
                 last_status = "empty response"
             elif response.status_code == 402:
                 raise RuntimeError("Hugging Face API (402): Account has no inference credits. Fallback active.")
-            elif response.status_code == 403:
+            elif response.status_code in (401, 403):
                 raise RuntimeError("Hugging Face API (403): Token missing Inference Provider permissions. Fallback active.")
             else:
                 last_status = f"status {response.status_code}"

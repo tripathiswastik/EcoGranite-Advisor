@@ -462,5 +462,95 @@ class TestEnvironmentLoading(unittest.TestCase):
                 self.assertEqual(os.environ["EG_TEST_VAR"], "from_env")
 
 
+class TestMethodologyHardeningAndReliability(unittest.TestCase):
+    def setUp(self) -> None:
+        self.advisor = EcoGraniteAdvisor()
+
+    def test_framework_threshold_boundaries_csrd(self) -> None:
+        # At exactly 80.0% renewable and 95.0% supplier, zero penalties
+        base = 90.0
+        compliant_metrics = {"renewable_pct": 80.0, "supplier_signoff_pct": 95.0}
+        res_ok = self.advisor._csrd_score(base, compliant_metrics)
+        self.assertEqual(res_ok["score"], 90.0)
+        self.assertEqual(len(res_ok["penalties"]), 0)
+        self.assertIn("Internal screening heuristic", res_ok["disclaimer"])
+
+        # Just below threshold (79.8% and 94.9%), penalties apply
+        boundary_metrics = {"renewable_pct": 79.8, "supplier_signoff_pct": 94.9}
+        res_fail = self.advisor._csrd_score(base, boundary_metrics)
+        self.assertEqual(res_fail["score"], 79.9)  # 90.0 - 0.1 (renewable penalty: (80-79.8)*0.5 = 0.1) - 10.0 (supplier penalty) = 79.9
+        self.assertEqual(len(res_fail["penalties"]), 2)
+
+    def test_framework_threshold_boundaries_issb(self) -> None:
+        base = 80.0
+        # Exactly 45.0% target -> no penalty
+        res_ok = self.advisor._issb_score(base, {"target_reduction_2030_pct": 45.0, "scope_3_pct": 60.0, "supplier_signoff_pct": 95.0})
+        self.assertEqual(res_ok["score"], 80.0)
+        self.assertEqual(len(res_ok["penalties"]), 0)
+        self.assertIn("Internal screening heuristic", res_ok["disclaimer"])
+
+        # Just below 45.0% (44.9%) -> penalty
+        res_fail = self.advisor._issb_score(base, {"target_reduction_2030_pct": 44.9, "scope_3_pct": 60.0, "supplier_signoff_pct": 95.0})
+        self.assertEqual(res_fail["score"], 65.0)  # -15 pts
+        self.assertEqual(len(res_fail["penalties"]), 1)
+
+    def test_deeply_nested_json_is_rejected(self) -> None:
+        nested: dict = {"data": "deep"}
+        for _ in range(20):
+            nested = {"child": nested}
+        stream = io.BytesIO(json.dumps(nested).encode("utf-8"))
+        stream.name = "nested.json"
+        res = parse_document(stream)
+        self.assertEqual(res["status"], "extraction_failed")
+        self.assertTrue(any("nesting depth" in err for err in res["errors"]))
+
+    def test_reconciliation_evidence_fields_present(self) -> None:
+        data = {
+            "company_name": "Test Co",
+            "emissions_metric_tons_co2e": {
+                "scope_1_direct": 100.0,
+                "scope_2_indirect_market": 200.0,
+                "scope_3_value_chain": 700.0,
+                "total_ghg": 1000.0,
+            }
+        }
+        analysis = self.advisor.analyze_compliance(validate_and_normalize_esg(data))
+        ev = analysis["reconciliation_evidence"]
+        self.assertEqual(ev["reported_total_ghg"], 1000.0)
+        self.assertEqual(ev["calculated_total_ghg"], 1000.0)
+        self.assertEqual(ev["variance_mt"], 0.0)
+        self.assertEqual(ev["reconciliation_status"], "PASSED")
+        self.assertIn("EcoGranite v4.2", analysis["methodology_version"])
+        self.assertIn("regulatory_disclaimer", analysis)
+
+    def test_ai_reasoning_does_not_mutate_audit_score(self) -> None:
+        data = {
+            "company_name": "Test Co",
+            "emissions_metric_tons_co2e": {
+                "scope_1_direct": 100.0,
+                "scope_2_indirect_market": 200.0,
+                "scope_3_value_chain": 700.0,
+                "total_ghg": 1000.0,
+            }
+        }
+        analysis_before = self.advisor.analyze_compliance(validate_and_normalize_esg(data))
+        score_before = analysis_before["esg_readiness_score"]
+
+        client = GraniteReasoningClient()
+        insights = client.generate_esg_insights(analysis_before)
+        self.assertIsInstance(insights, str)
+        self.assertEqual(analysis_before["esg_readiness_score"], score_before)
+
+    def test_hf_transient_retry_backoff(self) -> None:
+        client = GraniteReasoningClient()
+        resp_429 = _fake_response(429)
+        resp_200 = _fake_response(200, {"choices": [{"message": {"content": "Retry success"}}]})
+        with mock.patch("requests.post", side_effect=[resp_429, resp_200]):
+            with mock.patch.dict(os.environ, {"HUGGINGFACE_API_KEY": "hf_test"}):
+                text = client._call_huggingface_granite({"company_name": "Test"})
+                self.assertEqual(text, "Retry success")
+
+
 if __name__ == "__main__":
     unittest.main()
+

@@ -11,13 +11,25 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import datetime
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
-from esg_parser import parse_document, validate_and_normalize_esg
+from esg_parser import (
+    RECONCILIATION_MIN_TOLERANCE_MT,
+    RECONCILIATION_TOLERANCE_PCT,
+    parse_document,
+    validate_and_normalize_esg,
+)
 from granite_client import GraniteReasoningClient, load_environment
 
 DEFAULT_MODEL_ID = "ibm-granite/granite-3.0-8b-instruct"
+METHODOLOGY_VERSION = "EcoGranite v4.2 (Internal Readiness Screening)"
+REGULATORY_DISCLAIMER = (
+    "DISCLAIMER: EcoGranite readiness scores represent internal benchmark screening proxies and heuristics, "
+    "not verified statutory compliance, legal certification, or third-party reasonable assurance under "
+    "SEBI, EU CSRD, or ISSB mandates."
+)
 RECONCILIATION_POINTS = 5.0
 COMPLETENESS_POINTS = 5.0
 WARNING_PENALTY_POINTS = 0.75  # deducted per validation warning
@@ -305,6 +317,18 @@ class EcoGraniteAdvisor:
             },
             "benchmarks": benchmarks,
             "data_quality": dq,
+            "methodology_version": METHODOLOGY_VERSION,
+            "audit_timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "regulatory_disclaimer": REGULATORY_DISCLAIMER,
+            "reconciliation_evidence": {
+                "reported_total_ghg": dq.get("reported_total_ghg"),
+                "calculated_total_ghg": dq.get("calculated_total_ghg"),
+                "variance_mt": dq.get("total_ghg_variance", 0.0),
+                "tolerance_mt": round(max(RECONCILIATION_MIN_TOLERANCE_MT, RECONCILIATION_TOLERANCE_PCT * (dq.get("reported_total_ghg") or 0.0)), 1),
+                "reconciliation_status": recon_status,
+                "scope2_accounting_basis": "market-based",
+                "consolidation_boundary": "operational_control",
+            },
             "missing_metrics": [
                 k for k, v in [
                     ("water_recycled_pct", waste.get("water_recycled_pct")),
@@ -379,6 +403,14 @@ class EcoGraniteAdvisor:
             f"   - Scope 1+2+3 vs Total GHG   : {dq.get('reconciliation_status', 'UNKNOWN')} "
             f"(Variance: {dq.get('total_ghg_variance', 0.0):.1f} MT)",
             f"   - Completeness Score         : {dq.get('completeness_pct', 0.0):.1f}%",
+            f"   - Tolerance Threshold        : {analysis.get('reconciliation_evidence', {}).get('tolerance_mt', 0.0):.1f} MT",
+            f"   - Scope 2 Accounting Basis   : Market-based (disclosed purchase agreements)",
+            f"   - Consolidation Boundary     : Operational Control",
+            "", "METHODOLOGY & ASSURANCE NOTICE:",
+            f"   - Scoring Version            : {METHODOLOGY_VERSION}",
+            "   - Audit Assurance Status     : Internal diagnostic readiness screening only",
+            "   - Regulatory Disclaimer      : Scores are heuristic screening proxies; not an official",
+            "                                  legal certification or third-party statutory assurance.",
         ]
         if dq.get("validation_warnings"):
             lines.append("   - Validation Warnings        :")
@@ -536,7 +568,7 @@ class EcoGraniteAdvisor:
             penalties.append(f"ESRS G1 Penalty: Supplier Code sign-off {supplier:.1f}% < 95% threshold (-10 pts)")
         score = round(max(0.0, min(100.0, score)), 1)
         return {"framework": "CSRD (ESRS Strict)", "score": score, "tier": _tier(score, CSRD_TIERS),
-                "penalties": penalties, "focus": "Double Materiality, Value Chain Telemetry & 80% Clean Power Hurdle"}
+                "penalties": penalties, "focus": "Double Materiality, Value Chain Telemetry & 80% Clean Power Hurdle", "disclaimer": "Internal screening heuristic based on configurable thresholds; not an official CSRD conformity certificate."}
 
     @staticmethod
     def _issb_score(base: float, m: dict[str, Any]) -> dict[str, Any]:
@@ -551,7 +583,7 @@ class EcoGraniteAdvisor:
             penalties.append("IFRS S2 Supply Chain Risk: Unmitigated Scope 3 exposure > 65% with < 90% supplier coverage (-10 pts)")
         score = round(max(0.0, min(100.0, score)), 1)
         return {"framework": "ISSB (IFRS S2)", "score": score, "tier": _tier(score, ISSB_TIERS),
-                "penalties": penalties, "focus": "Financial Capital Allocation, Transition Plans & Climate Value-at-Risk"}
+                "penalties": penalties, "focus": "Financial Capital Allocation, Transition Plans & Climate Value-at-Risk", "disclaimer": "Internal screening heuristic based on configurable thresholds; not an official IFRS S2 conformity certificate."}
 
 
 def _resolve_input_path(raw_path: str) -> str:

@@ -88,6 +88,20 @@ def _clean_title(file_name: str) -> str:
     return stem.replace("_", " ").replace("-", " ").title()
 
 
+MAX_JSON_DEPTH = 15
+
+
+def _check_depth(obj: Any, depth: int = 0) -> bool:
+    """Returns True if object depth is within acceptable limit."""
+    if depth > MAX_JSON_DEPTH:
+        return False
+    if isinstance(obj, dict):
+        return all(_check_depth(v, depth + 1) for v in obj.values())
+    if isinstance(obj, (list, tuple)):
+        return all(_check_depth(v, depth + 1) for v in obj)
+    return True
+
+
 def _parse_json_bytes(content: bytes, file_name: str) -> dict[str, Any]:
     """Decodes and normalizes JSON bytes; returns extraction_failed on bad input."""
     try:
@@ -96,6 +110,8 @@ def _parse_json_bytes(content: bytes, file_name: str) -> dict[str, Any]:
         return _failure(file_name, [f"Malformed JSON document: {exc}"])
     if not isinstance(data, dict):
         return _failure(file_name, ["JSON root must be an object, not a list or scalar."])
+    if not _check_depth(data):
+        return _failure(file_name, ["JSON document exceeds maximum nesting depth limit."])
     return validate_and_normalize_esg(data)
 
 

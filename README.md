@@ -3,7 +3,7 @@
 [![Challenge](https://img.shields.io/badge/Challenge-IBM%20SkillsBuild%20AI%20Builders-052F5F.svg?style=flat&logo=IBM)](https://github.com/IBM-SkillsBuild-AI-Builders-Challenge)
 [![Model](https://img.shields.io/badge/Model-IBM%20Granite%203.0-blue.svg)](https://huggingface.co/ibm-granite)
 [![Parser](https://img.shields.io/badge/Parser-IBM%20Docling%20Bridge-green.svg)](https://github.com/DS4SD/docling)
-[![Tests](https://img.shields.io/badge/Tests-Passing%20(32%2F32)-brightgreen.svg)](https://github.com/tripathiswastik/EcoGranite-Advisor)
+[![Tests](https://img.shields.io/badge/Tests-Passing%20(38%2F38)-brightgreen.svg)](https://github.com/tripathiswastik/EcoGranite-Advisor)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Author](https://img.shields.io/badge/Author-Swastik%20Tripathi-blueviolet.svg)](https://github.com/tripathiswastik)
 
@@ -232,6 +232,30 @@ STRATEGIC RECOMMENDATIONS (IBM Granite 3.0 Reasoning):
    3. Elevate Water Circularity: Water recycling is currently at 42.0% (below 50% circularity goal). Invest in closed-loop effluent treatment and membrane filtration.
 ================================================================================
 ```
+
+---
+
+## ⚖️ Methodology & Regulatory Assurance Notice
+
+> [!IMPORTANT]
+> **Audit Assurance Boundary:** EcoGranite readiness scores represent **internal diagnostic screening heuristics** and maturity proxies designed to identify reporting gaps, reconciliation discrepancies, and transition hurdles.
+> 
+> - **Not Legal Certification:** Scores do not constitute formal legal compliance certification or third-party reasonable assurance under EU CSRD, SEBI BRSR Core, or ISSB mandates.
+> - **Accounting Assumptions:** Scope 2 accounting defaults to market-based reporting with contractual instruments; consolidation operates under the operational control boundary.
+> - **Missing Data Integrity:** Missing metrics remain explicitly classified as `"Unknown (Missing Data)"` with zero credit; they are never defaulted to zero or fabricated.
+> - **Deterministic Separation:** All numeric audit scores and pillar calculations are computed deterministically before AI calls; generative AI advice does not alter underlying scores.
+
+---
+
+## 📦 Clean Release Packaging
+
+To build clean, publication-ready distribution archives free of `.git` internals, `.env` secrets, virtual environments, or compiled bytecode:
+
+```bash
+python build_release.py
+```
+
+The resulting zip file is written to `dist/EcoGranite-Advisor-v4.2.zip` and verified automatically against credential leakage rules.
 
 ---
 
