@@ -7,6 +7,7 @@ Exposes engine runtime metadata, catches and reports API errors, and generates s
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import json
 import logging
 import os
@@ -57,6 +58,150 @@ def build_prompt(audit_summary: dict[str, Any]) -> str:
         "and synthesize 3 concise, prioritized decarbonization recommendations:\n"
         f"{json.dumps(safe_summary, indent=2)}"
     )
+
+
+@dataclass(frozen=True)
+class ESGFinding:
+    pillar: str
+    card_title: str
+    narrative_title: str
+    metric: str
+    card_action: str
+    narrative_action: str
+    priority: str
+    benchmark_case: str
+    badge_color: str
+
+
+def _evaluate_shared_findings(audit_summary: dict[str, Any]) -> list[ESGFinding]:
+    metrics = audit_summary.get("metrics", {})
+    benchmarks = audit_summary.get("benchmarks", {})
+
+    s3_pct = metrics.get("scope_3_pct", 0.0)
+    s1 = metrics.get("scope_1", 0.0)
+    s2 = metrics.get("scope_2", 0.0)
+    s3 = metrics.get("scope_3", 0.0)
+    ren_val = metrics.get("renewable_pct", 0.0)
+    water_rec_pct = metrics.get("water_recycled_pct")
+
+    findings: list[ESGFinding] = []
+
+    # Finding 1: Scope 1-3 Operations vs Value Chain
+    if metrics.get("total_ghg", 0.0) <= 0:
+        findings.append(ESGFinding(
+            pillar="Data Quality",
+            card_title="Disclose Scope 1-3 Emissions",
+            narrative_title="Scope 1-3 Emissions Disclosure",
+            metric="Total GHG footprint not available",
+            card_action="Report Scope 1, 2 and 3 emissions to enable prioritization.",
+            narrative_action="Report Scope 1, 2 and 3 emissions to enable accurate operational decarbonization.",
+            priority="High Priority",
+            benchmark_case="GHG Protocol Corporate Standard",
+            badge_color="#EF4444",
+        ))
+    elif s3_pct > 50.0:
+        findings.append(ESGFinding(
+            pillar="Supply Chain & Scope 3",
+            card_title="Accelerate Scope 3 Supplier Engagement (Abengoa Protocol)",
+            narrative_title="Target Value Chain Decarbonization",
+            metric=f"Scope 3 represents {s3_pct:.1f}% of total footprint ({s3:,.0f} MT CO2e)",
+            card_action="Enforce mandatory third-party verified vendor carbon accounting (Abengoa model) and execute Category 1 raw material LCA disaggregation (BASF model).",
+            narrative_action="Deploy supplier carbon scorecards and transport route optimization.",
+            priority="High Priority",
+            benchmark_case="Abengoa (Mandatory Supplier Verification) & BASF (Raw Material LCAs)",
+            badge_color="#EF4444",
+        ))
+    else:
+        findings.append(ESGFinding(
+            pillar="Direct Operations",
+            card_title="Accelerate Scope 1 & 2 Electrification",
+            narrative_title="Operational Abatement",
+            metric=f"Direct operations represent {(100.0 - s3_pct):.1f}% ({s1 + s2:,.0f} MT CO2e)",
+            card_action="Electrify commercial fleet and replace fossil heat with industrial heat pumps.",
+            narrative_action="Electrify fleet operations and convert high-heat processes to heat pumps.",
+            priority="High Priority",
+            benchmark_case="National Grid (Capital Allocation Internalization)",
+            badge_color="#EF4444",
+        ))
+
+    # Finding 2: Renewable Energy
+    ren_status = benchmarks.get("Renewable Energy Share (Target >= 60%)", {})
+    if str(ren_status.get("status", "")).startswith("Unknown"):
+        findings.append(ESGFinding(
+            pillar="Data Quality",
+            card_title="Disclose Renewable Electricity Share",
+            narrative_title="Renewable Electricity Disclosure",
+            metric="Renewable share not disclosed",
+            card_action="Report total and renewable MWh so the transition gap can be measured.",
+            narrative_action="Report total and renewable MWh so transition progress can be benchmarked.",
+            priority="High Priority",
+            benchmark_case="RE100 Technical Framework",
+            badge_color="#F59E0B",
+        ))
+    elif ren_status.get("status") != "Compliant":
+        findings.append(ESGFinding(
+            pillar="Clean Power & Transition",
+            card_title="Close Renewable Electricity Deficit (SC Johnson CapEx Matrix)",
+            narrative_title="Accelerate Clean Energy Procurement",
+            metric=f"Currently at {ren_val:.1f}% (falling short of 60% RE threshold)",
+            card_action="Execute long-term Virtual Power Purchase Agreements (VPPAs) and prioritize low-to-mid CapEx on-site solar storage.",
+            narrative_action="Execute long-term Virtual Power Purchase Agreements (VPPAs).",
+            priority="High Priority",
+            benchmark_case="SC Johnson (CapEx vs. Impact Decarbonization Matrix)",
+            badge_color="#F59E0B",
+        ))
+    else:
+        findings.append(ESGFinding(
+            pillar="Clean Power Leadership",
+            card_title="Advance 24/7 Carbon-Free Energy Matching",
+            narrative_title="Maintain Clean Energy Momentum",
+            metric=f"Exceeded renewable target at {ren_val:.1f}%",
+            card_action="Transition from annual RECs to hourly matching and battery storage orchestration.",
+            narrative_action="Aim for 24/7 carbon-free hourly matching.",
+            priority="Medium Priority",
+            benchmark_case="RE100 Technical Framework",
+            badge_color="#10B981",
+        ))
+
+    # Finding 3: Circular Economy & Resource Efficiency
+    if water_rec_pct is None:
+        findings.append(ESGFinding(
+            pillar="Water & Circularity",
+            card_title="Disclose Water Recycling & Conservation",
+            narrative_title="Water Recycling Disclosure",
+            metric="Water recycling was not reported",
+            card_action="Disclose campus and facility water recycling metrics to establish closed-loop circularity.",
+            narrative_action="Establish metering and publish circular water recovery rates.",
+            priority="Medium Priority",
+            benchmark_case="Closed-Loop Circular Effluent Recovery",
+            badge_color="#3B82F6",
+        ))
+    elif water_rec_pct < 50.0:
+        findings.append(ESGFinding(
+            pillar="Water & Circularity",
+            card_title="Water Recycling & Closed-Loop Recovery",
+            narrative_title="Elevate Water Circularity",
+            metric=f"Water recycling is currently at {water_rec_pct:.1f}% (below 50% circularity goal)",
+            card_action="Scale closed-loop recovery technology and membrane bioreactors to surpass 50% circularity within the next reporting cycle.",
+            narrative_action="Invest in closed-loop effluent treatment and membrane filtration.",
+            priority="Medium Priority",
+            benchmark_case="Closed-Loop Circular Effluent Recovery",
+            badge_color="#3B82F6",
+        ))
+    else:
+        findings.append(ESGFinding(
+            pillar="Product & Downstream Efficiency",
+            card_title="Downstream Energy Transformation (IKEA Model)",
+            narrative_title="Waste & Landfill Minimization",
+            metric=f"High water circularity at {water_rec_pct:.1f}%",
+            card_action="Drive scale reductions in Category 11 use-phase product energy efficiency targeting +50% efficiency (IKEA model).",
+            narrative_action="Focus on residual hazardous waste diversion.",
+            priority="Medium Priority",
+            benchmark_case="IKEA (Category 11 Product Efficiency Scaling)",
+            badge_color="#3B82F6",
+        ))
+
+    return findings
 
 
 class GraniteReasoningClient:
@@ -231,116 +376,19 @@ class GraniteReasoningClient:
         Derives structured decarbonization action items for UI card presentation.
         Uses deterministic rule-based prioritization over observed disclosures.
         """
-        metrics = audit_summary.get("metrics", {})
-        benchmarks = audit_summary.get("benchmarks", {})
-
-        s3_pct = metrics.get("scope_3_pct", 0.0)
-        s1 = metrics.get("scope_1", 0.0)
-        s2 = metrics.get("scope_2", 0.0)
-        s3 = metrics.get("scope_3", 0.0)
-        ren_val = metrics.get("renewable_pct", 0.0)
-        water_rec_pct = metrics.get("water_recycled_pct")
-
-        items = []
-
-        # Card 1: Value Chain / Operations
-        if metrics.get("total_ghg", 0.0) <= 0:
-            items.append({
-                "pillar": "Data Quality",
-                "title": "Disclose Scope 1-3 Emissions",
-                "metric": "Total GHG footprint not available",
-                "action": "Report Scope 1, 2 and 3 emissions to enable prioritization.",
-                "priority": "High Priority",
-                "benchmark_case": "GHG Protocol Corporate Standard",
-                "badge_color": "#EF4444"
-            })
-        elif s3_pct > 50.0:
-            items.append({
-                "pillar": "Supply Chain & Scope 3",
-                "title": "Accelerate Scope 3 Supplier Engagement (Abengoa Protocol)",
-                "metric": f"{s3_pct:.1f}% of total footprint ({s3:,.0f} MT CO2e)",
-                "action": "Enforce mandatory third-party verified vendor carbon accounting (Abengoa model) and execute Category 1 raw material LCA disaggregation (BASF model).",
-                "priority": "High Priority",
-                "benchmark_case": "Abengoa (Mandatory Supplier Verification) & BASF (Raw Material LCAs)",
-                "badge_color": "#EF4444"
-            })
-        else:
-            items.append({
-                "pillar": "Direct Operations",
-                "title": "Accelerate Scope 1 & 2 Electrification",
-                "metric": f"{(100.0 - s3_pct):.1f}% direct emissions ({s1 + s2:,.0f} MT CO2e)",
-                "action": "Electrify commercial fleet and replace fossil heat with industrial heat pumps.",
-                "priority": "High Priority",
-                "benchmark_case": "National Grid (Capital Allocation Internalization)",
-                "badge_color": "#EF4444"
-            })
-
-        # Card 2: Renewable Energy
-        ren_status = benchmarks.get("Renewable Energy Share (Target >= 60%)", {})
-        if str(ren_status.get("status", "")).startswith("Unknown"):
-            items.append({
-                "pillar": "Data Quality",
-                "title": "Disclose Renewable Electricity Share",
-                "metric": "Renewable share not disclosed",
-                "action": "Report total and renewable MWh so the transition gap can be measured.",
-                "priority": "High Priority",
-                "benchmark_case": "RE100 Technical Framework",
-                "badge_color": "#F59E0B"
-            })
-        elif ren_status.get("status") != "Compliant":
-            items.append({
-                "pillar": "Clean Power & Transition",
-                "title": "Close Renewable Electricity Deficit (SC Johnson CapEx Matrix)",
-                "metric": f"Currently {ren_val:.1f}% (target: >=60.0%)",
-                "action": "Execute long-term Virtual Power Purchase Agreements (VPPAs) and prioritize low-to-mid CapEx on-site solar storage.",
-                "priority": "High Priority",
-                "benchmark_case": "SC Johnson (CapEx vs. Impact Decarbonization Matrix)",
-                "badge_color": "#F59E0B"
-            })
-        else:
-            items.append({
-                "pillar": "Clean Power Leadership",
-                "title": "Advance 24/7 Carbon-Free Energy Matching",
-                "metric": f"Exceeds RE threshold at {ren_val:.1f}%",
-                "action": "Transition from annual RECs to hourly matching and battery storage orchestration.",
-                "priority": "Medium Priority",
-                "benchmark_case": "RE100 Technical Framework",
-                "badge_color": "#10B981"
-            })
-
-        # Card 3: Circular Economy & Product Efficiency
-        if water_rec_pct is None:
-            items.append({
-                "pillar": "Water & Circularity",
-                "title": "Disclose Water Recycling & Conservation",
-                "metric": "Water recycling not reported",
-                "action": "Disclose campus and facility water recycling metrics to establish closed-loop circularity.",
-                "priority": "Medium Priority",
-                "benchmark_case": "Closed-Loop Circular Effluent Recovery",
-                "badge_color": "#3B82F6"
-            })
-        elif water_rec_pct < 50.0:
-            items.append({
-                "pillar": "Water & Circularity",
-                "title": "Water Recycling & Closed-Loop Recovery",
-                "metric": f"Current wastewater recycling at {water_rec_pct:.1f}% (below 50% target)",
-                "action": "Scale closed-loop recovery technology and membrane bioreactors to surpass 50% circularity within the next reporting cycle.",
-                "priority": "Medium Priority",
-                "benchmark_case": "Closed-Loop Circular Effluent Recovery",
-                "badge_color": "#3B82F6"
-            })
-        else:
-            items.append({
-                "pillar": "Product & Downstream Efficiency",
-                "title": "Downstream Energy Transformation (IKEA Model)",
-                "metric": f"Strong water recycling at {water_rec_pct:.1f}%",
-                "action": "Drive scale reductions in Category 11 use-phase product energy efficiency targeting +50% efficiency (IKEA model).",
-                "priority": "Medium Priority",
-                "benchmark_case": "IKEA (Category 11 Product Efficiency Scaling)",
-                "badge_color": "#3B82F6"
-            })
-
-        return items
+        findings = _evaluate_shared_findings(audit_summary)
+        return [
+            {
+                "pillar": f.pillar,
+                "title": f.card_title,
+                "metric": f.metric,
+                "action": f.card_action,
+                "priority": f.priority,
+                "benchmark_case": f.benchmark_case,
+                "badge_color": f.badge_color,
+            }
+            for f in findings
+        ]
 
     def get_eight_step_roadmap(self) -> list[dict[str, Any]]:
         """Provides the standardized EcoGranite 8-step enterprise decarbonization workflow."""
@@ -358,12 +406,12 @@ class GraniteReasoningClient:
     def _local_granite_reasoning(self, audit_summary: dict[str, Any]) -> str:
         """
         Deterministic reasoning following IBM Granite 3.0 prompting guidelines.
-        Derives all figures dynamically from the supplied audit summary.
+        Derives all figures dynamically from the shared findings evaluation.
         """
-        cards = self.generate_structured_recommendations(audit_summary)
+        findings = _evaluate_shared_findings(audit_summary)
         recommendations = [
-            f"{i}. {card['title']}: {card['metric']}. {card['action']}"
-            for i, card in enumerate(cards, 1)
+            f"{i}. {f.narrative_title}: {f.metric}. {f.narrative_action}"
+            for i, f in enumerate(findings, 1)
         ]
 
         header = "STRATEGIC RECOMMENDATIONS (IBM Granite 3.0 Reasoning):\n"
