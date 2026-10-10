@@ -390,9 +390,9 @@ with st.sidebar:
     if runtime_meta.get("is_fallback"):
         st.info(f"Granite Mode: **Local Reasoning**\n\n*{runtime_meta.get('fallback_reason')}*")
     elif runtime_meta.get("engine") == "huggingface":
-        st.success(f"Granite Mode: **Hugging Face Live Inference (Configured)**\n\n*{model_choice}*")
+        st.success(f"Granite Mode: **Hugging Face Inference (configured)**\n\n*{model_choice}*")
     elif runtime_meta.get("engine") == "watsonx":
-        st.success(f"Granite Mode: **IBM WatsonX Live API (Configured)**\n\n*{model_choice}*")
+        st.success(f"Granite Mode: **IBM WatsonX (configured)**\n\n*{model_choice}*")
     else:
         st.info("Granite Mode: **Local Reasoning**")
 

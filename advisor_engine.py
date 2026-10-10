@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
 from esg_parser import parse_document, validate_and_normalize_esg
-from granite_client import GraniteReasoningClient
+from granite_client import GraniteReasoningClient, load_environment
 
 DEFAULT_MODEL_ID = "ibm-granite/granite-3.0-8b-instruct"
 RECONCILIATION_POINTS = 5.0
@@ -555,15 +555,13 @@ def _resolve_input_path(raw_path: str) -> str:
 
 def main() -> int:
     """CLI entry point. Returns 0 on success, 1 on error, 2 if extraction was refused."""
-    from granite_client import load_environment
-    load_environment()
-
     parser = argparse.ArgumentParser(description="EcoGranite-Advisor: Autonomous ESG Sustainability Auditor")
     parser.add_argument("--input", "-i", default="sample_esg_report.json",
                         help="Path to input ESG document (.json, .pdf, or .docx).")
     parser.add_argument("--model", "-m", default=DEFAULT_MODEL_ID, help="IBM Granite foundation model ID.")
     args = parser.parse_args()
 
+    load_environment()
     advisor = EcoGraniteAdvisor(model_id=args.model)
     try:
         data = advisor.load_document(_resolve_input_path(args.input))
