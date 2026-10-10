@@ -269,12 +269,11 @@ def get_advisor(model_id: str, hf_api_key: Optional[str] = None) -> EcoGraniteAd
 
 
 def load_dataset_file(filename: str) -> dict[str, Any]:
-    """Helper to load a JSON dataset from disk."""
+    """Helper to load a dataset (.json, .txt, etc.) from disk."""
     base_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(base_dir, filename)
     if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return parse_document(json.load(f))
+        return parse_document(path)
     return {"company_name": "Sample Entity", "status": "extraction_failed", "errors": ["File not found"]}
 
 
@@ -350,7 +349,9 @@ with st.sidebar:
             "🏢 Benchmark: Siemens AG (Global Enterprise - DEGREE)",
             "📙 Sample: CarbonHeavy Corp (Lagging/Poor)",
             "📕 Sample: Incoherent Disclosures (Reconciliation Failure)",
-            "📁 Upload Custom File (.json, .pdf, .docx)"
+            "📄 Text: Standard Terminology (sample_disclosure_standard.txt)",
+            "📄 Text: Non-Standard Synonyms (sample_disclosure_synonyms.txt)",
+            "📁 Upload Custom File (.json, .pdf, .docx, .txt)"
         ],
         index=0
     )
@@ -366,11 +367,15 @@ with st.sidebar:
         raw_data = load_dataset_file("sample_esg_report_poor.json")
     elif data_source_mode == "📕 Sample: Incoherent Disclosures (Reconciliation Failure)":
         raw_data = load_dataset_file("sample_esg_report_invalid.json")
+    elif data_source_mode == "📄 Text: Standard Terminology (sample_disclosure_standard.txt)":
+        raw_data = load_dataset_file("sample_disclosure_standard.txt")
+    elif data_source_mode == "📄 Text: Non-Standard Synonyms (sample_disclosure_synonyms.txt)":
+        raw_data = load_dataset_file("sample_disclosure_synonyms.txt")
     else:
         uploaded_file = st.file_uploader(
-            "Upload Corporate Disclosure (.json, .pdf, .docx)",
-            type=["json", "pdf", "docx"],
-            help="IBM Docling will parse multi-modal tables and text into the ESG auditing schema."
+            "Upload Corporate Disclosure (.json, .pdf, .docx, .txt)",
+            type=["json", "pdf", "docx", "txt"],
+            help="IBM Docling and Regex Pipeline will parse tables and text into the ESG auditing schema."
         )
         if uploaded_file is not None:
             try:

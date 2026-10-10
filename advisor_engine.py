@@ -158,6 +158,10 @@ class EcoGraniteAdvisor:
         """Loads and normalizes an ESG report via the parser pipeline."""
         return parse_document(file_source)
 
+    def load_esg_data(self, file_source: Any) -> dict[str, Any]:
+        """Convenience alias for load_document."""
+        return self.load_document(file_source)
+
     def calculate_continuous_score(
         self, value: Optional[float], target: float, max_weight: float, higher_is_better: bool = True
     ) -> float:
@@ -435,6 +439,10 @@ class EcoGraniteAdvisor:
             lines.append(f"   {name:<38} {row['value']:<10} {row['score']:<8} {row['status']:<12} {row['risk']}")
         lines += ["   " + "-" * 76, "", ai_insights, "=" * 80, ""]
         return "\n".join(lines)
+
+    def generate_granite_audit_report(self, data: dict[str, Any], analysis: dict[str, Any]) -> str:
+        """Convenience alias for generate_audit_report."""
+        return self.generate_audit_report(data, analysis)
 
     def calculate_sector_weighted_score(
         self, analysis: dict[str, Any], sector: str = "Technology & Software"

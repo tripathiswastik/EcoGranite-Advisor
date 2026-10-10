@@ -1,0 +1,21 @@
+Annual Sustainability Statement FY2024
+Entity: Horizon Clean Tech Industries
+Reporting Period: FY2024
+
+Greenhouse Gas Performance:
+Direct Operational Emissions (Scope 1): 18,400.0 MT CO2e
+Purchased Electricity Emissions: 12,200.0 MT CO2e
+Value Chain Emissions: 95,000.0 MT CO2e
+Total Carbon Footprint: 125,600.0 MT CO2e
+YoY Carbon Reduction: 9.2%
+
+Energy & Resources:
+Total Energy Usage: 75,000.0 MWh
+Clean Power Ratio: 82.5%
+Landfill Diversion Rate: 88.0%
+Wastewater Recovery Rate: 55.0%
+
+Social & Governance Benchmarks:
+Female Representation on Board: 42.0%
+Board Independence Ratio: 85.0%
+Supplier Code Sign-off: 99.0%

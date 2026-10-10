@@ -563,6 +563,46 @@ class TestMethodologyHardeningAndReliability(unittest.TestCase):
         self.assertEqual(advisor.granite_client.hf_key, "hf_advisor_param")
         self.assertTrue(advisor.granite_client.is_hf_live)
 
+    def test_text_disclosure_standard_template(self) -> None:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(base_dir, "sample_disclosure_standard.txt")
+        data = self.advisor.load_esg_data(path)
+        self.assertEqual(data["company_name"], "EcoGlobal Enterprise Corp.")
+        self.assertEqual(data["reporting_year"], 2024)
+        analysis = self.advisor.analyze_compliance(data)
+        self.assertTrue(analysis["can_audit"])
+        self.assertEqual(analysis["data_quality"]["reconciliation_status"], "PASSED")
+        report = self.advisor.generate_granite_audit_report(data, analysis)
+        self.assertIn("EcoGlobal Enterprise Corp.", report)
+
+    def test_text_disclosure_synonyms_template(self) -> None:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(base_dir, "sample_disclosure_synonyms.txt")
+        data = self.advisor.load_esg_data(path)
+        self.assertEqual(data["company_name"], "Horizon Clean Tech Industries")
+        self.assertEqual(data["reporting_year"], 2024)
+        # Check that synonyms parsed correctly
+        em = data["emissions_metric_tons_co2e"]
+        self.assertEqual(em["scope_1_direct"], 18400.0)
+        self.assertEqual(em["scope_2_indirect_market"], 12200.0)
+        self.assertEqual(em["scope_3_value_chain"], 95000.0)
+        self.assertEqual(em["total_ghg"], 125600.0)
+        self.assertEqual(em["achieved_reduction_yoy_pct"], 9.2)
+        # Check energy synonyms (Clean Power Ratio -> renewable_share_pct)
+        self.assertEqual(data["renewable_energy"]["renewable_share_pct"], 82.5)
+        self.assertEqual(data["renewable_energy"]["total_mwh_consumed"], 75000.0)
+        # Check waste synonyms (Wastewater Recovery Rate & Landfill Diversion Rate)
+        self.assertEqual(data["water_and_waste"]["water_recycled_pct"], 55.0)
+        self.assertEqual(data["water_and_waste"]["waste_diverted_from_landfill_pct"], 88.0)
+        # Check governance synonyms (Female Representation on Board & Board Independence Ratio)
+        self.assertEqual(data["social_and_governance"]["female_board_representation_pct"], 42.0)
+        self.assertEqual(data["social_and_governance"]["independent_directors_pct"], 85.0)
+        self.assertEqual(data["social_and_governance"]["supplier_code_of_conduct_signoff_pct"], 99.0)
+
+        analysis = self.advisor.analyze_compliance(data)
+        self.assertEqual(analysis["data_quality"]["reconciliation_status"], "PASSED")
+        self.assertGreater(analysis["esg_readiness_score"], 90.0)
+
 
 if __name__ == "__main__":
     unittest.main()

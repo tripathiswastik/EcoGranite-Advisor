@@ -1,0 +1,25 @@
+Corporate Sustainability & ESG Disclosure FY2024
+Company Name: EcoGlobal Enterprise Corp.
+Reporting Year: 2024
+Framework Alignment: GRI, TCFD, SASB
+
+1. Greenhouse Gas (GHG) Footprint:
+- Scope 1 direct GHG emissions: 14,250.0 MT CO2e
+- Scope 2 indirect GHG emissions: 8,940.0 MT CO2e
+- Scope 3 value chain emissions: 46,300.0 MT CO2e
+- Total GHG footprint: 69,490.0 MT CO2e
+- 2030 Science-Based Target (SBTi): 45.0% reduction
+- YoY progress achieved: 8.4% reduction
+
+2. Energy & Clean Transition:
+- Total electricity consumed: 38,400.0 MWh
+- Renewable electricity sourced: 26,880.0 MWh
+- Renewable energy share: 70.0%
+- RE100 Pledged: Yes
+
+3. Resource Management & Governance:
+- Total water withdrawal: 124,000.0 m3
+- Water recycled percentage: 42.0%
+- Waste diverted from landfill: 86.5%
+- Female board representation: 44.0%
+- Independent directors share: 80.0%

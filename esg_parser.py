@@ -130,7 +130,9 @@ def _parse_stream(stream: Any, filename: Optional[str]) -> dict[str, Any]:
         return _parse_pdf_or_docx_bytes(content, file_name)
     if ext == ".json":
         return _parse_json_bytes(content, file_name)
-    return _failure(file_name, [f"Unsupported file format '{ext}'. Expected .json, .pdf, or .docx"])
+    if ext in (".txt", ".text"):
+        return extract_esg_from_text(content.decode("utf-8", errors="replace"), file_name)
+    return _failure(file_name, [f"Unsupported file format '{ext}'. Expected .json, .pdf, .docx, or .txt"])
 
 
 def _parse_path(path: str) -> dict[str, Any]:
@@ -138,14 +140,16 @@ def _parse_path(path: str) -> dict[str, Any]:
     if not os.path.exists(path):
         raise FileNotFoundError(f"ESG document not found at: {path}")
     ext = os.path.splitext(path)[1].lower()
-    if ext not in (".json", ".pdf", ".docx"):
-        return _failure(path, [f"Unsupported file extension '{ext}'. Supported: .json, .pdf, .docx"])
+    if ext not in (".json", ".pdf", ".docx", ".txt", ".text"):
+        return _failure(path, [f"Unsupported file extension '{ext}'. Supported: .json, .pdf, .docx, .txt"])
     if os.path.getsize(path) > MAX_UPLOAD_BYTES:
         return _failure(path, [f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit."])
     with open(path, "rb") as handle:
         content = handle.read()
     if ext == ".json":
         return _parse_json_bytes(content, path)
+    if ext in (".txt", ".text"):
+        return extract_esg_from_text(content.decode("utf-8", errors="replace"), os.path.basename(path))
     return _parse_pdf_or_docx_bytes(content, os.path.basename(path))
 
 
@@ -268,24 +272,107 @@ def _find_number(pattern: str, text: str) -> Optional[float]:
 
 
 def extract_esg_from_text(text: str, source_name: str) -> dict[str, Any]:
-    """Scans document text for ESG disclosures.
+    """Scans document text for ESG disclosures using flexible synonym matching.
 
     Refuses to invent numbers: if required disclosures are missing, returns
     an extraction_failed result listing what could not be found.
     """
+    clean_text = text.replace("&amp;", "&")
     errors: list[str] = []
     emissions: dict[str, Any] = {}
+    energy: dict[str, Any] = {}
+    water_waste: dict[str, Any] = {}
+    governance: dict[str, Any] = {}
 
     company = re.search(
-        r"(?:Company|Entity|Corporation|Organization)\s*[:\-]\s*([^\n\r]+)", text, re.IGNORECASE
+        r"(?:Company(?:\s*Name)?|Entity|Corporation|Organization)\s*[:\-]\s*([^\n\r]+)", clean_text, re.IGNORECASE
     )
-    year = re.search(r"(?:FY|fiscal year|reporting year)\s*[:\-]?\s*(20\d{2})", text, re.IGNORECASE)
+    year = re.search(r"(?:FY|fiscal\s*year|reporting\s*year|reporting\s*period)\s*[:\-]?\s*(?:FY)?(20\d{2})", clean_text, re.IGNORECASE)
 
-    scope_1 = _find_number(r"Scope\s*1(?:\s*\(Direct\))?\s*[:\-]?\s*" + _NUMBER, text)
-    scope_2 = _find_number(r"Scope\s*2(?:\s*\(Indirect\))?\s*[:\-]?\s*" + _NUMBER, text)
-    scope_3 = _find_number(r"Scope\s*3(?:\s*\(Value Chain\))?\s*[:\-]?\s*" + _NUMBER, text)
-    renewable = _find_number(r"Renewable\s*(?:energy|electricity|share)?\s*[:\-]?\s*" + _NUMBER + r"\s*%", text)
+    # Scope 1 (Direct Operational Emissions)
+    scope_1 = _find_number(
+        r"(?:Scope\s*1(?:\s*direct)?(?:\s*GHG)?\s*emissions?|Direct\s*Operational\s*Emissions(?:\s*\(Scope\s*1\))?|Direct\s*(?:GHG)?\s*emissions(?:\s*\(Scope\s*1\))?)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+    if scope_1 is None:
+        scope_1 = _find_number(r"(?:Scope\s*1|Direct\s*Emissions)\s*[:\-]?\s*" + _NUMBER, clean_text)
 
+    # Scope 2 (Indirect / Purchased Electricity)
+    scope_2 = _find_number(
+        r"(?:Scope\s*2(?:\s*indirect)?(?:\s*GHG)?\s*emissions?|Purchased\s*Electricity\s*Emissions|Purchased\s*Energy\s*Emissions|Indirect\s*(?:GHG)?\s*emissions(?:\s*\(Scope\s*2\))?)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+    if scope_2 is None:
+        scope_2 = _find_number(r"(?:Scope\s*2|Purchased\s*Electricity)\s*[:\-]?\s*" + _NUMBER, clean_text)
+
+    # Scope 3 (Value Chain / Supply Chain)
+    scope_3 = _find_number(
+        r"(?:Scope\s*3(?:\s*value\s*chain)?\s*emissions?|Value\s*Chain\s*Emissions|Supply\s*Chain\s*Emissions)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+    if scope_3 is None:
+        scope_3 = _find_number(r"Scope\s*3\s*[:\-]?\s*" + _NUMBER, clean_text)
+
+    # Total GHG / Total Carbon Footprint
+    total_ghg = _find_number(
+        r"(?:Total\s*GHG\s*footprint|Total\s*Carbon\s*Footprint|Total\s*GHG\s*emissions|Total\s*emissions)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+
+    # SBTi 2030 Target & YoY progress
+    target_2030 = _find_number(
+        r"(?:2030\s*Science[\s\-]Based\s*Target(?:\s*\(SBTi\))?|SBTi\s*2030\s*Target|2030\s*Target)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+    yoy_reduction = _find_number(
+        r"(?:YoY\s*progress\s*achieved|YoY\s*Carbon\s*Reduction|YoY\s*emissions?\s*reduction|Year[\s\-]over[\s\-]Year\s*reduction)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+
+    # Energy: Total consumption, renewable sourced, and renewable share / clean power ratio
+    total_mwh = _find_number(
+        r"(?:Total\s*electricity\s*consumed|Total\s*Energy\s*Usage|Total\s*Energy\s*Consumption|Total\s*power\s*consumed)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+    renewable_mwh = _find_number(
+        r"(?:Renewable\s*electricity\s*sourced|Renewable\s*energy\s*sourced|Renewable\s*power\s*consumed|Clean\s*electricity\s*consumed)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+    renewable_share = _find_number(
+        r"(?:Renewable\s*energy\s*share|Clean\s*Power\s*Ratio|Renewable\s*electricity\s*share|Renewable\s*share|Green\s*power\s*ratio)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+    re100_match = re.search(r"RE100\s*(?:Pledged|Committed|Member)?\s*[:\-]?\s*(Yes|True)", clean_text, re.IGNORECASE)
+
+    # Water & Waste: Withdrawal, recycled / recovery, diversion from landfill
+    water_withdrawal = _find_number(
+        r"(?:Total\s*water\s*withdrawal|Water\s*withdrawal|Total\s*water\s*usage)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+    water_recycled = _find_number(
+        r"(?:Water\s*recycled\s*(?:percentage|share|ratio)?|Wastewater\s*Recovery\s*Rate|Water\s*recycling\s*rate)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+    waste_diverted = _find_number(
+        r"(?:Waste\s*diverted\s*from\s*landfill|Landfill\s*Diversion\s*Rate|Waste\s*diversion\s*rate)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+
+    # Social & Governance: Female board rep, independent directors, supplier code
+    female_board = _find_number(
+        r"(?:Female\s*board\s*representation|Female\s*Representation\s*on\s*Board|Women\s*on\s*board|Board\s*gender\s*diversity)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+    independent_directors = _find_number(
+        r"(?:Independent\s*directors\s*(?:share|percentage|ratio)?|Board\s*Independence\s*Ratio|Independent\s*board\s*ratio)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+    supplier_code = _find_number(
+        r"(?:Supplier\s*Code\s*Sign[\s\-]off|Supplier\s*code\s*of\s*conduct\s*sign[\s\-]off|Vendor\s*code\s*sign[\s\-]off)\s*[:\-]?\s*" + _NUMBER,
+        clean_text
+    )
+
+    # Validate essential requirements
     if scope_1 is None:
         errors.append("Scope 1 direct GHG emissions could not be identified in disclosure text")
     else:
@@ -296,8 +383,43 @@ def extract_esg_from_text(text: str, source_name: str) -> dict[str, Any]:
         emissions["scope_2_indirect_market"] = scope_2
     if scope_3 is not None:
         emissions["scope_3_value_chain"] = scope_3
-    if renewable is None:
+    if total_ghg is not None:
+        emissions["total_ghg"] = total_ghg
+    if target_2030 is not None:
+        emissions["target_reduction_2030_pct"] = target_2030
+    if yoy_reduction is not None:
+        emissions["achieved_reduction_yoy_pct"] = yoy_reduction
+
+    # Renewable energy compilation
+    if total_mwh is not None:
+        energy["total_mwh_consumed"] = total_mwh
+    if renewable_mwh is not None:
+        energy["renewable_mwh"] = renewable_mwh
+    if renewable_share is not None:
+        energy["renewable_share_pct"] = renewable_share
+    elif total_mwh and total_mwh > 0 and renewable_mwh is not None:
+        energy["renewable_share_pct"] = round(renewable_mwh / total_mwh * 100.0, 2)
+    if re100_match is not None:
+        energy["re100_committed"] = True
+
+    if renewable_share is None and energy.get("renewable_share_pct") is None:
         errors.append("Renewable energy share percentage could not be identified in disclosure text")
+
+    # Water and waste compilation
+    if water_withdrawal is not None:
+        water_waste["total_water_withdrawal_m3"] = water_withdrawal
+    if water_recycled is not None:
+        water_waste["water_recycled_pct"] = water_recycled
+    if waste_diverted is not None:
+        water_waste["waste_diverted_from_landfill_pct"] = waste_diverted
+
+    # Governance compilation
+    if female_board is not None:
+        governance["female_board_representation_pct"] = female_board
+    if independent_directors is not None:
+        governance["independent_directors_pct"] = independent_directors
+    if supplier_code is not None:
+        governance["supplier_code_of_conduct_signoff_pct"] = supplier_code
 
     if len(errors) >= 2 or not emissions:
         return {
@@ -310,9 +432,11 @@ def extract_esg_from_text(text: str, source_name: str) -> dict[str, Any]:
     extracted: dict[str, Any] = {
         "company_name": company.group(1).strip() if company else _clean_title(source_name),
         "reporting_year": int(year.group(1)) if year else None,
-        "standards": [name for name in KNOWN_STANDARDS if name.lower() in text.lower()],
+        "standards": [name for name in KNOWN_STANDARDS if name.lower() in clean_text.lower()],
         "emissions_metric_tons_co2e": emissions,
-        "renewable_energy": {} if renewable is None else {"renewable_share_pct": renewable},
+        "renewable_energy": energy,
+        "water_and_waste": water_waste,
+        "social_and_governance": governance,
     }
     return validate_and_normalize_esg(extracted)
 
