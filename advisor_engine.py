@@ -382,7 +382,7 @@ class EcoGraniteAdvisor:
         total = m["total_ghg"]
 
         def share(value: float) -> float:
-            return value / total * 100.0 if total > 0 else 0.0
+            return float(value / total * 100.0) if total > 0 else 0.0
 
         def pts(name: str) -> str:
             p = pillars.get(name, {})
@@ -408,8 +408,8 @@ class EcoGraniteAdvisor:
             f"(Variance: {dq.get('total_ghg_variance', 0.0):.1f} MT)",
             f"   - Completeness Score         : {dq.get('completeness_pct', 0.0):.1f}%",
             f"   - Tolerance Threshold        : {analysis.get('reconciliation_evidence', {}).get('tolerance_mt', 0.0):.1f} MT",
-            f"   - Scope 2 Accounting Basis   : Market-based (disclosed purchase agreements)",
-            f"   - Consolidation Boundary     : Operational Control",
+            "   - Scope 2 Accounting Basis   : Market-based (disclosed purchase agreements)",
+            "   - Consolidation Boundary     : Operational Control",
             "", "METHODOLOGY & ASSURANCE NOTICE:",
             f"   - Scoring Version            : {METHODOLOGY_VERSION}",
             "   - Audit Assurance Status     : Internal diagnostic readiness screening only",

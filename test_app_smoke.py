@@ -10,7 +10,6 @@ import os
 import unittest
 
 from advisor_engine import EcoGraniteAdvisor
-from esg_parser import parse_document
 
 try:
     from streamlit.testing.v1 import AppTest

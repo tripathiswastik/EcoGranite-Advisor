@@ -11,7 +11,6 @@ Packages a clean release distribution zip file strictly excluding:
 """
 
 import os
-import sys
 import zipfile
 from pathlib import Path
 
@@ -74,7 +73,7 @@ def build_release_zip() -> Path:
     included_files = []
 
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for root, dirs, files in os.walk(PROJECT_ROOT):
+        for root, _dirs, files in os.walk(PROJECT_ROOT):
             root_path = Path(root)
             rel_dir = root_path.relative_to(PROJECT_ROOT)
 

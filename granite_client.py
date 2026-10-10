@@ -176,7 +176,7 @@ class GraniteReasoningClient:
         Tries the selected model first, then the Granite 4.2 fallbacks. Raises
         RuntimeError with a safe, token-free message on failure.
         """
-        import requests
+        import requests  # type: ignore[import]
 
         headers = {"Authorization": f"Bearer {self.hf_key}", "Content-Type": "application/json"}
         messages = [

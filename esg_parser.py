@@ -39,15 +39,18 @@ except (ImportError, OSError):
     DOCLING_AVAILABLE = False
 
 # Optional dependency: pypdf (preferred) or PyPDF2
+PdfReader: Any = None
 try:
-    from pypdf import PdfReader
+    from pypdf import PdfReader as _PdfReader
+    PdfReader = _PdfReader
     PDF_PARSER_AVAILABLE = True
 except ImportError:
     try:
-        from PyPDF2 import PdfReader  # type: ignore[no-redef]
+        from PyPDF2 import PdfReader as _PyPDF2Reader
+        PdfReader = _PyPDF2Reader
         PDF_PARSER_AVAILABLE = True
     except ImportError:
-        PdfReader = None  # type: ignore[assignment,misc]
+        PdfReader = None
         PDF_PARSER_AVAILABLE = False
 
 
