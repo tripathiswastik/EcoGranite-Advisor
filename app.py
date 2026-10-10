@@ -40,227 +40,10 @@ st.set_page_config(
 # ==========================================
 # High-End Design System & Custom CSS
 # ==========================================
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap');
-
-    /* Global Typography */
-    html, body, [class*="css"] {
-        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: #0F172A;
-    }
-
-    /* Gradient Header Typography */
-    .hero-title {
-        font-family: 'Outfit', sans-serif;
-        font-size: 2.35rem;
-        font-weight: 800;
-        letter-spacing: -0.7px;
-        background: linear-gradient(135deg, #0F172A 0%, #1E40AF 50%, #059669 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0.2rem;
-        display: inline-block;
-    }
-
-    .hero-subtitle {
-        font-size: 1.05rem;
-        font-weight: 500;
-        color: #475569;
-        margin-bottom: 1.4rem;
-        line-height: 1.5;
-    }
-
-    /* Engine Status Badges */
-    .badge-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 12px;
-        border-radius: 9999px;
-        font-size: 0.78rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        vertical-align: middle;
-        margin-left: 8px;
-    }
-
-    .badge-granite {
-        background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
-        color: #FFFFFF;
-        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
-    }
-
-    .badge-refusal {
-        background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%);
-        color: #FFFFFF;
-        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
-    }
-
-    /* Luxury Glassmorphic KPI Cards */
-    .kpi-container {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 16px;
-        padding: 1.25rem 1.1rem;
-        box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .kpi-container:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.09), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
-        border-color: #CBD5E1;
-    }
-
-    .kpi-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
-    }
-
-    .kpi-label {
-        font-size: 0.85rem;
-        font-weight: 700;
-        color: #64748B;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .kpi-icon {
-        font-size: 1.25rem;
-        width: 36px;
-        height: 36px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 10px;
-        background: #F1F5F9;
-    }
-
-    .kpi-value {
-        font-family: 'Outfit', sans-serif;
-        font-size: 1.85rem;
-        font-weight: 800;
-        color: #0F172A;
-        letter-spacing: -0.5px;
-        line-height: 1.1;
-        margin-bottom: 0.4rem;
-    }
-
-    .kpi-sub {
-        font-size: 0.82rem;
-        font-weight: 600;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 2px 8px;
-        border-radius: 6px;
-    }
-
-    .kpi-sub-positive {
-        background: #ECFDF5;
-        color: #059669;
-    }
-
-    .kpi-sub-negative {
-        background: #FEF2F2;
-        color: #DC2626;
-    }
-
-    .kpi-sub-neutral {
-        background: #F8FAFC;
-        color: #475569;
-    }
-
-    /* Recommendation Cards */
-    .rec-card-modern {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 14px;
-        padding: 1.25rem;
-        margin-bottom: 1rem;
-        border-left: 5px solid #3B82F6;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-        transition: transform 0.15s ease;
-    }
-
-    .rec-card-modern:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
-    }
-
-    .rec-header-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.4rem;
-    }
-
-    .rec-badge-pillar {
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        padding: 3px 8px;
-        border-radius: 6px;
-    }
-
-    .rec-card-title {
-        font-family: 'Outfit', sans-serif;
-        font-size: 1.12rem;
-        font-weight: 700;
-        color: #0F172A;
-        margin-bottom: 0.35rem;
-    }
-
-    .rec-meta-box {
-        font-size: 0.88rem;
-        color: #334155;
-        background: #F8FAFC;
-        padding: 8px 12px;
-        border-radius: 8px;
-        margin-bottom: 0.5rem;
-        border: 1px solid #F1F5F9;
-    }
-
-    .rec-action-text {
-        font-size: 0.93rem;
-        color: #1E293B;
-        line-height: 1.5;
-    }
-
-    /* Stepper Workflow */
-    .step-box {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 12px;
-        padding: 1rem;
-        margin-bottom: 0.6rem;
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-    }
-
-    .step-num-pill {
-        background: linear-gradient(135deg, #1E40AF, #3B82F6);
-        color: white;
-        font-weight: 800;
-        font-size: 0.85rem;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-</style>
-""", unsafe_allow_html=True)
+_CSS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "style.css")
+if os.path.exists(_CSS_PATH):
+    with open(_CSS_PATH, "r", encoding="utf-8") as _f:
+        st.markdown(f"<style>{_f.read()}</style>", unsafe_allow_html=True)
 
 
 def get_advisor(model_id: str, hf_api_key: Optional[str] = None) -> EcoGraniteAdvisor:
@@ -526,7 +309,7 @@ with k1:
 
 with k2:
     yoy_val = m.get("achieved_yoy_pct", 0.0)
-    is_yoy_good = yoy_val >= 5.0
+    is_yoy_good = bool(analysis.get("reduction_pass", False))
     st.markdown(f"""
     <div class="kpi-container">
         <div class="kpi-top">
@@ -559,7 +342,8 @@ with k3:
 with k4:
     div_val = m.get("waste_diverted_pct", 0.0)
     target_diff = div_val - 75.0
-    is_div_good = target_diff >= 0
+    waste_bench = benchmarks.get("Waste Diversion (Target >= 75%)", {})
+    is_div_good = waste_bench.get("status") == "Compliant"
     st.markdown(f"""
     <div class="kpi-container">
         <div class="kpi-top">

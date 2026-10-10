@@ -360,58 +360,11 @@ class GraniteReasoningClient:
         Deterministic reasoning following IBM Granite 3.0 prompting guidelines.
         Derives all figures dynamically from the supplied audit summary.
         """
-        recommendations = []
-        metrics = audit_summary.get("metrics", {})
-        benchmarks = audit_summary.get("benchmarks", {})
-
-        s3_pct = metrics.get("scope_3_pct", 0.0)
-        s1 = metrics.get("scope_1", 0.0)
-        s2 = metrics.get("scope_2", 0.0)
-        s3 = metrics.get("scope_3", 0.0)
-
-        # Recommendation 1: Scope 3 Value Chain
-        if s3_pct > 50.0:
-            recommendations.append(
-                f"1. Target Value Chain Decarbonization: Scope 3 represents {s3_pct:.1f}% of total footprint ({s3:,.1f} MT CO2e). "
-                f"Deploy supplier carbon scorecards and transport route optimization."
-            )
-        else:
-            recommendations.append(
-                f"1. Operational Abatement: Direct Scope 1+2 operations drive {(100.0 - s3_pct):.1f}% of emissions ({s1 + s2:,.1f} MT CO2e). "
-                f"Transition vehicle fleets and on-site heating to electric/heat pumps."
-            )
-
-        # Recommendation 2: Renewable Energy Transition
-        ren_status = benchmarks.get("Renewable Energy Share (Target >= 60%)", {})
-        ren_val = metrics.get("renewable_pct", 0.0)
-        if ren_status.get("status") != "Compliant":
-            recommendations.append(
-                f"2. Accelerate Clean Energy Procurement: Currently at {ren_val:.1f}%, falling short of the 60% RE threshold. "
-                f"Execute long-term Virtual Power Purchase Agreements (VPPAs)."
-            )
-        else:
-            recommendations.append(
-                f"2. Maintain Clean Energy Momentum: Exceeded renewable target at {ren_val:.1f}%. "
-                f"Aim for 24/7 carbon-free hourly matching."
-            )
-
-        # Recommendation 3: Water Recycling / Resource Efficiency
-        water_rec_pct = metrics.get("water_recycled_pct")
-        if water_rec_pct is None:
-            recommendations.append(
-                "3. Water Recycling Disclosure: Campus and industrial water recycling was not reported. "
-                "Establish metering and publish circular water recovery rates."
-            )
-        elif water_rec_pct < 50.0:
-            recommendations.append(
-                f"3. Elevate Water Circularity: Water recycling is currently at {water_rec_pct:.1f}% (below 50% circularity goal). "
-                f"Invest in closed-loop effluent treatment and membrane filtration."
-            )
-        else:
-            recommendations.append(
-                f"3. Waste & Landfill Minimization: High water circularity at {water_rec_pct:.1f}%. "
-                f"Focus on residual hazardous waste diversion."
-            )
+        cards = self.generate_structured_recommendations(audit_summary)
+        recommendations = [
+            f"{i}. {card['title']}: {card['metric']}. {card['action']}"
+            for i, card in enumerate(cards, 1)
+        ]
 
         header = "STRATEGIC RECOMMENDATIONS (IBM Granite 3.0 Reasoning):\n"
         if self.last_error:
