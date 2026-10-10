@@ -321,7 +321,7 @@ class GraniteReasoningClient:
         Tries the selected model first, then the Granite 4.2 fallbacks. Raises
         RuntimeError with a safe, token-free message on failure.
         """
-        import requests  # type: ignore[import]
+        import requests
 
         headers = {"Authorization": f"Bearer {self.hf_key}", "Content-Type": "application/json"}
         messages = [
@@ -331,8 +331,12 @@ class GraniteReasoningClient:
         candidates = [self.model_id] + [m for m in HF_FALLBACK_MODELS if m != self.model_id]
         last_status = "Unknown"
         for model_name in candidates:
-            payload = {"model": model_name, "messages": messages,
-                       "max_tokens": HF_MAX_TOKENS, "temperature": 0.2}
+            payload: dict[str, Any] = {
+                "model": model_name,
+                "messages": messages,
+                "max_tokens": HF_MAX_TOKENS,
+                "temperature": 0.2,
+            }
             response = None
             for attempt in range(MAX_RETRIES + 1):
                 try:

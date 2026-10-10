@@ -31,8 +31,10 @@ KNOWN_STANDARDS = ("GRI", "TCFD", "SASB", "SBTi", "BRSR", "CSRD", "ISSB")
 WORD_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
 # Optional dependency: IBM Docling
+DocumentConverter: Any = None
 try:
-    from docling.document_converter import DocumentConverter
+    from docling.document_converter import DocumentConverter as _DocumentConverter
+    DocumentConverter = _DocumentConverter
     DOCLING_AVAILABLE = True
 except (ImportError, OSError):
     DocumentConverter = None
