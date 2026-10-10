@@ -24,44 +24,72 @@ Traditional text extraction tools flatten these tables, misaligning GHG rows wit
 
 ---
 
-## 💡 Solution Architecture
+## 💡 Solution Architecture & Agent Pipeline
 
-```text
-+------------------------------------------------------+
-|            Corporate ESG Report (PDF/JSON)           |
-+------------------------------------------------------+
-                           |
-                           v
-+------------------------------------------------------+
-|       IBM Docling Ingestion Engine (esg_parser.py)   |
-|  • Layout & nested table extraction                  |
-|  • Refusal on extraction failure (never fakes data)  |
-|  • GHG Scope 1+2+3 reconciliation & anomaly checks   |
-+------------------------------------------------------+
-                           |
-                           v
-+------------------------------------------------------+
-|       4-Pillar Continuous Scoring Engine             |
-|  • Environmental (60) | Social (15) | Governance (15)|
-|  • Data Quality & Reconciliation Integrity (10)      |
-|  • Disqualification flag on reconciliation failure   |
-+------------------------------------------------------+
-                           |
-                           v
-+------------------------------------------------------+
-|         IBM Granite 3.0 (granite_client.py)          |
-|  • WatsonX live API inference / Deterministic engine |
-|  • Rule-based priority cards + Narrative synthesis   |
-|  • Transparent runtime metadata & error capture      |
-+------------------------------------------------------+
-                           |
-         +-----------------+-----------------+
-         |                                   |
-         v                                   v
-+------------------------+ +-----------------------------------+
-|      CLI Auditor       | |    Streamlit Dashboard (app.py)   |
-|  Text & Export Reports | | Multi-Sample Switcher & Analytics |
-+------------------------+ +-----------------------------------+
+```mermaid
+graph TD
+    A[Corporate ESG Report<br/>PDF / DOCX / JSON] --> B[IBM Docling Ingestion Bridge<br/>esg_parser.py]
+    B --> C{Data Integrity &<br/>Reconciliation Check}
+    C -->|Reconciliation Discrepancy| D[Refusal / Disqualification Flag<br/>Never Fakes Data]
+    C -->|Valid Disclosures| E[4-Pillar Continuous Scoring Engine<br/>Environmental 60 | Social 15 | Governance 15 | Data Quality 10]
+    E --> F[Materiality & Framework Adjuster<br/>SEBI BRSR Core | CSRD ESRS | SASB SICS]
+    F --> G[IBM Granite 3.0 Reasoning Engine<br/>granite_client.py]
+    G --> H[Interactive Streamlit Dashboard<br/>app.py]
+    G --> I[Decarbonization Action Roadmap<br/>& Audit Report Export]
+```
+
+---
+
+## 🔄 Sample Transformation: Raw Disclosures to Structured Audit
+
+EcoGranite-Advisor ingests raw corporate disclosures and extracts verified GHG accounting parameters, enforcing strict reconciliation checks:
+
+### 1. Ingested ESG Disclosure Payload (`sample_esg_report.json`)
+```json
+{
+  "company_name": "EcoGlobal Enterprise Corp.",
+  "reporting_year": "2024",
+  "frameworks_applied": ["GRI", "TCFD", "SASB"],
+  "ghg_emissions": {
+    "scope_1_mt": 12450.0,
+    "scope_2_mt": 8200.0,
+    "scope_3_mt": 45100.0,
+    "total_reported_mt": 65750.0,
+    "reduction_target_pct": 15.0,
+    "reduction_achieved_pct": 12.4
+  },
+  "energy_management": {
+    "total_consumption_mwh": 120000.0,
+    "renewable_share_pct": 68.5
+  },
+  "governance": {
+    "independent_board_pct": 80.0,
+    "board_gender_diversity_pct": 45.0
+  }
+}
+```
+
+### 2. Audited Output & Decarbonization Intelligence
+```json
+{
+  "composite_score": 100.0,
+  "rating_tier": "[A] EXCELLENT (ESG LEADER)",
+  "reconciliation_status": "VERIFIED (Scope 1 + 2 + 3 = 65,750.0 MT CO2e)",
+  "pillar_scores": {
+    "environmental": 60.0,
+    "social": 15.0,
+    "governance": 15.0,
+    "data_quality": 10.0
+  },
+  "granite_priorities": [
+    {
+      "priority": 1,
+      "domain": "Scope 3 Value Chain Decarbonization",
+      "action": "Engage Tier-1 suppliers to set science-based targets (SBTi)",
+      "impact": "Mitigates 68.6% of gross organizational carbon footprint"
+    }
+  ]
+}
 ```
 
 ---
