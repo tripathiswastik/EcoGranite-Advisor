@@ -292,7 +292,7 @@ class EcoGraniteAdvisor:
                 "total_mwh": energy.get("total_mwh_consumed") or 0.0,
                 "re100_committed": bool(energy.get("re100_committed", False)),
                 "water_withdrawn_m3": waste.get("total_water_withdrawal_m3") or 0.0,
-                "water_recycled_pct": waste.get("water_recycled_pct") or 0.0,
+                "water_recycled_pct": waste.get("water_recycled_pct"),
                 "waste_diverted_pct": raw["waste_diverted_from_landfill_pct"] or 0.0,
                 "female_board_rep_pct": raw["female_board_representation_pct"] or 0.0,
                 "independent_directors_pct": raw["independent_directors_pct"] or 0.0,
@@ -305,6 +305,14 @@ class EcoGraniteAdvisor:
             },
             "benchmarks": benchmarks,
             "data_quality": dq,
+            "missing_metrics": [
+                k for k, v in [
+                    ("water_recycled_pct", waste.get("water_recycled_pct")),
+                    ("target_reduction_2030_pct", emissions.get("target_reduction_2030_pct")),
+                    ("gender_pay_equity_ratio", raw["gender_pay_equity_ratio"]),
+                    ("csr_spend_pct_net_profit", gov.get("csr_spend_pct_net_profit")),
+                ] if v is None
+            ],
         }
 
     def generate_roadmap_items(self, analysis: dict[str, Any]) -> list[dict[str, Any]]:

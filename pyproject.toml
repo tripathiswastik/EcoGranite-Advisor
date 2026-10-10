@@ -1,0 +1,14 @@
+[tool.ruff]
+line-length = 120
+target-version = "py38"
+extend-exclude = ["app.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "W"]
+ignore = ["B008", "E501"]
+
+[tool.mypy]
+python_version = "3.8"
+strict = true
+warn_unused_ignores = false
+ignore_missing_imports = true

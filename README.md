@@ -111,9 +111,9 @@ Traditional text extraction tools flatten these tables, misaligning GHG rows wit
 
 | Company Entity | Audit Cycle | GRI Baseline Score | CSRD ESRS Strict Score | SEBI BRSR Core Status | Primary Audit Priority |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **EcoGlobal Enterprise Corp.** | FY 2024 | **100 / 100 [A]** | **80 / 100 [A]** *(RE Share < 80%)* | **Compliant** *(BRSR Core Assured)* | Accelerate Scope 3 Tier-1 Supplier Telemetry |
-| **Siemens AG** | FY 2024 | **100 / 100 [A]** | **95 / 100 [A]** *(84.0% RE Power)* | **Compliant** *(EU Taxonomy Aligned)* | Primary LCAs for Scope 3 Category 1 Raw Materials |
-| **Infosys Limited** | FY 2024 | **100 / 100 [A]** | **90 / 100 [A]** *(74.8% RE Power)* | **BRSR Core Leader** | Campus Zero Liquid Discharge & VPPAs |
+| **EcoGlobal Enterprise Corp.** | FY 2024 | **100.0 / 100 [A]** | **95.0 / 100 [A]** *(RE Share < 80%)* | **Compliant** *(BRSR Core Assured)* | Target Value Chain Decarbonization |
+| **Siemens AG** | FY 2024 | **98.6 / 100 [A]** | **98.6 / 100 [A]** | **Compliant** *(EU Taxonomy Aligned)* | Target Value Chain Decarbonization |
+| **Infosys Limited** | FY 2024 | **99.5 / 100 [A]** | **98.0 / 100 [A]** | **BRSR Core Leader** | Target Value Chain Decarbonization |
 
 ---
 
@@ -126,6 +126,8 @@ EcoGranite-Advisor/
 ├── esg_parser.py                    # IBM Docling PDF/DOCX bridge, reconciliation & validator
 ├── granite_client.py                # Dual IBM Granite client (WatsonX API + Local Reasoning)
 ├── test_advisor.py                  # Adversarial unit test suite (32 tests)
+├── test_app_smoke.py                # Dashboard smoke and AppTest suite
+├── pyproject.toml                   # Ruff & mypy configuration
 ├── sample_esg_report.json           # Sample 1: Compliant Leader ESG dataset (EcoGlobal)
 ├── sample_esg_report_india.json     # Sample 2: India SEBI BRSR Core dataset (Infosys Limited)
 ├── sample_esg_report_siemens.json   # Sample 3: Global Enterprise benchmark (Siemens AG)
@@ -178,10 +180,11 @@ python advisor_engine.py --input path/to/your_report.json
 
 ### 3. Run the Automated Test Suite
 ```bash
-python -m unittest test_advisor.py
+# Run all unit and smoke tests
+python -m unittest discover
 ```
 
-### 3. Example Audit Report Output
+### 4. Example Audit Report Output
 ```text
 ================================================================================
 [*] ECOGRANITE ADVISOR: CORPORATE ESG AUDIT REPORT
@@ -234,7 +237,7 @@ STRATEGIC RECOMMENDATIONS (IBM Granite 3.0 Reasoning):
 
 ## 🛠️ Technology Stack
 
-- **Reasoning LLM:** [IBM Granite 3.0](https://huggingface.co/ibm-granite) / WatsonX AI Foundation Models
+- **Reasoning LLM:** [IBM Granite 4.2 / 3.0](https://huggingface.co/ibm-granite) / WatsonX AI Foundation Models
 - **Document Intelligence:** [IBM Docling (DS4SD)](https://github.com/DS4SD/docling)
 - **Runtime:** Python 3.8+
 - **Reporting Standards:** GRI (Global Reporting Initiative), TCFD, SASB

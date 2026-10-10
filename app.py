@@ -278,12 +278,24 @@ def load_dataset_file(filename: str) -> dict[str, Any]:
     return {"company_name": "Sample Entity", "status": "extraction_failed", "errors": ["File not found"]}
 
 
+def full_width() -> dict[str, Any]:
+    """Helper to support width='stretch' on newer Streamlit without deprecation warnings."""
+    try:
+        ver = [int(p) for p in st.__version__.split(".")[:2]]
+        if (ver[0] > 1) or (ver[0] == 1 and ver[1] >= 50):
+            return {"width": "stretch"}
+    except Exception:
+        pass
+    return {"use_container_width": True}
+
+
 def safe_dataframe(df: pd.DataFrame):
     """Safely renders a pandas DataFrame across all Streamlit versions (handles older versions without hide_index)."""
+    kwargs = full_width()
     try:
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.dataframe(df, hide_index=True, **kwargs)
     except TypeError:
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, **kwargs)
 
 
 # ==========================================
@@ -604,7 +616,7 @@ with tab_exec:
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)'
         )
-        st.plotly_chart(fig_gauge, use_container_width=True)
+        st.plotly_chart(fig_gauge, **full_width())
 
     with col_chart_right:
         # 4-Pillar Radar / Polar Chart
@@ -639,7 +651,7 @@ with tab_exec:
             margin=dict(l=30, r=30, t=30, b=30),
             paper_bgcolor='rgba(0,0,0,0)'
         )
-        st.plotly_chart(fig_radar, use_container_width=True)
+        st.plotly_chart(fig_radar, **full_width())
 
     # Benchmark Audit Table
     st.markdown("### Statutory Benchmark Compliance Matrix")
@@ -735,7 +747,7 @@ with tab_exec:
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(248,250,252,0.6)'
         )
-        st.plotly_chart(fig_dm, use_container_width=True)
+        st.plotly_chart(fig_dm, **full_width())
 
     with col_dm_desc:
         st.markdown(f"""
@@ -800,7 +812,7 @@ with tab_ghg:
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)'
         )
-        st.plotly_chart(fig_waterfall, use_container_width=True)
+        st.plotly_chart(fig_waterfall, **full_width())
 
     with col_pie:
         # Interactive Hole Donut Chart
@@ -823,7 +835,7 @@ with tab_ghg:
             showlegend=False,
             paper_bgcolor='rgba(0,0,0,0)'
         )
-        st.plotly_chart(fig_donut, use_container_width=True)
+        st.plotly_chart(fig_donut, **full_width())
 
     # Scope 3 Criticality Callout
     s3_pct = m["scope_3_pct"]
@@ -868,7 +880,7 @@ with tab_ghg:
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(248,250,252,0.8)'
     )
-    st.plotly_chart(fig_bench_compare, use_container_width=True)
+    st.plotly_chart(fig_bench_compare, **full_width())
 
 # ------------------------------------------
 # TAB 3: Resources & Ethical Governance
@@ -896,13 +908,14 @@ with tab_resources:
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)'
         )
-        st.plotly_chart(fig_energy, use_container_width=True)
+        st.plotly_chart(fig_energy, **full_width())
 
         w1, w2 = st.columns(2)
         with w1:
             st.metric("Total Water Withdrawal", f"{m.get('water_withdrawn_m3', 0.0):,.0f} m³")
         with w2:
-            st.metric("Water Recycling Ratio", f"{m.get('water_recycled_pct', 0.0):.1f}%", delta="Target: ≥50%")
+            w_rec = m.get("water_recycled_pct")
+            st.metric("Water Recycling Ratio", f"{w_rec:.1f}%" if w_rec is not None else "Not disclosed", delta="Target: ≥50%" if w_rec is not None else None)
 
     with col_res_r:
         st.markdown("#### Governance & Social Accountability")
@@ -981,7 +994,7 @@ with tab_granite:
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(248,250,252,0.8)'
     )
-    st.plotly_chart(fig_matrix, use_container_width=True)
+    st.plotly_chart(fig_matrix, **full_width())
 
     # Dynamic Priority Action Cards
     st.markdown("#### 🎯 Priority Action Cards")
@@ -1035,7 +1048,7 @@ with tab_granite:
 
     col_btn, col_info = st.columns([1, 2])
     with col_btn:
-        if st.button("✨ Synthesize Granite AI Narrative", use_container_width=True):
+        if st.button("✨ Synthesize Granite AI Narrative", **full_width()):
             with st.spinner("Invoking IBM Granite reasoning engine..."):
                 st.session_state[session_key] = advisor.generate_ai_insights(analysis)
 
@@ -1063,7 +1076,7 @@ with tab_granite:
             data=full_text_report,
             file_name=f"EcoGranite_Audit_{safe_name}_{reporting_year}.txt",
             mime="text/plain",
-            use_container_width=True
+            **full_width()
         )
 
     with dl_col2:
@@ -1072,7 +1085,7 @@ with tab_granite:
             data=json.dumps(analysis, indent=2),
             file_name=f"EcoGranite_Normalized_{safe_name}_{reporting_year}.json",
             mime="application/json",
-            use_container_width=True
+            **full_width()
         )
 
 # Footer

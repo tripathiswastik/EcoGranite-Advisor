@@ -220,7 +220,7 @@ class GraniteReasoningClient:
         s2 = metrics.get("scope_2", 0.0)
         s3 = metrics.get("scope_3", 0.0)
         ren_val = metrics.get("renewable_pct", 0.0)
-        water_rec_pct = metrics.get("water_recycled_pct", 0.0)
+        water_rec_pct = metrics.get("water_recycled_pct")
 
         items = []
 
@@ -290,7 +290,17 @@ class GraniteReasoningClient:
             })
 
         # Card 3: Circular Economy & Product Efficiency
-        if water_rec_pct < 50.0:
+        if water_rec_pct is None:
+            items.append({
+                "pillar": "Water & Circularity",
+                "title": "Disclose Water Recycling & Conservation",
+                "metric": "Water recycling not reported",
+                "action": "Disclose campus and facility water recycling metrics to establish closed-loop circularity.",
+                "priority": "Medium Priority",
+                "benchmark_case": "Closed-Loop Circular Effluent Recovery",
+                "badge_color": "#3B82F6"
+            })
+        elif water_rec_pct < 50.0:
             items.append({
                 "pillar": "Water & Circularity",
                 "title": "Water Recycling & Closed-Loop Recovery",
@@ -367,8 +377,13 @@ class GraniteReasoningClient:
             )
 
         # Recommendation 3: Water Recycling / Resource Efficiency
-        water_rec_pct = metrics.get("water_recycled_pct", 0.0)
-        if water_rec_pct < 50.0:
+        water_rec_pct = metrics.get("water_recycled_pct")
+        if water_rec_pct is None:
+            recommendations.append(
+                "3. Water Recycling Disclosure: Campus and industrial water recycling was not reported. "
+                "Establish metering and publish circular water recovery rates."
+            )
+        elif water_rec_pct < 50.0:
             recommendations.append(
                 f"3. Elevate Water Circularity: Water recycling is currently at {water_rec_pct:.1f}% (below 50% circularity goal). "
                 f"Invest in closed-loop effluent treatment and membrane filtration."
