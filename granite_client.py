@@ -99,7 +99,7 @@ class GraniteReasoningClient:
             }
         else:
             reason = self.last_reason or (
-                "No API credentials supplied (WATSONX_APIKEY or HUGGINGFACE_API_KEY)"
+                "Local rule-based reasoning active"
                 if not (self.is_watsonx_live or self.is_hf_live)
                 else "Inference error encountered (fallback active)"
             )

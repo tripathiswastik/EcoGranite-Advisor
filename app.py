@@ -414,12 +414,12 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("#### ⚙️ Engine Diagnostics")
     st.caption(f"Docling Bridge: **{'🟢 Native' if DOCLING_AVAILABLE else '🟡 Structural Parser'}**")
-    if runtime_meta.get("is_fallback"):
-        st.info(f"Granite Mode: **Local Reasoning**\n\n*{runtime_meta.get('fallback_reason')}*")
-    elif runtime_meta.get("engine") == "huggingface":
+    if runtime_meta.get("engine") == "huggingface":
         st.success(f"Granite Mode: **Hugging Face Inference (configured)**\n\n*{model_choice}*")
     elif runtime_meta.get("engine") == "watsonx":
         st.success(f"Granite Mode: **IBM WatsonX (configured)**\n\n*{model_choice}*")
+    elif runtime_meta.get("error"):
+        st.info(f"Granite Mode: **Local Reasoning**\n\n*{runtime_meta.get('fallback_reason')}*")
     else:
         st.info("Granite Mode: **Local Reasoning**")
 
