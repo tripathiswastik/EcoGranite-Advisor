@@ -14,22 +14,36 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-HF_MAX_TOKENS = 1000
+
+HF_MAX_TOKENS = 1000  # reasoning models spend part of the budget on thinking
+WATSONX_MAX_TOKENS = 500
+REQUEST_TIMEOUT_S = 20
+HF_CHAT_URL = "https://router.huggingface.co/v1/chat/completions"
+HF_FALLBACK_MODELS = ("ibm-granite/granite-4.2-8b", "ibm-granite/granite-4.2-3b")
 
 
 def load_environment() -> None:
-    """Loads environment variables from local .env using python-dotenv without overriding existing variables."""
+    """Loads a local .env file (never overriding real environment variables).
+
+    Call once from an entry point (app.py / advisor_engine.main), not at import
+    time, so importing this module has no side effects and tests stay
+    deterministic.
+    """
     try:
         from dotenv import load_dotenv
-        env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
-        if os.path.exists(env_path):
-            load_dotenv(dotenv_path=env_path, override=False)
-    except Exception:
-        pass
+    except ImportError:
+        logger.debug("python-dotenv not installed; skipping .env loading")
+        return
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    load_dotenv(env_path, override=False)
 
 
 def build_prompt(audit_summary: dict[str, Any]) -> str:
-    """Constructs a structured prompt for IBM Granite, excluding free-text to prevent prompt injection."""
+    """Builds the LLM prompt from computed metrics only.
+
+    Free text from uploaded files (e.g. company name) is excluded so it cannot
+    inject instructions into the prompt.
+    """
     safe_summary = {
         "rating_tier": audit_summary.get("rating_tier"),
         "metrics": audit_summary.get("metrics", {}),
@@ -52,7 +66,7 @@ class GraniteReasoningClient:
         self.is_watsonx_live = bool(self.api_key and self.project_id)
 
         # Hugging Face Inference credentials
-        self.hf_key = os.getenv("HUGGINGFACE_API_KEY") or os.getenv("HF_TOKEN")
+        self.hf_key = (os.getenv("HUGGINGFACE_API_KEY") or os.getenv("HF_TOKEN") or "").strip() or None
         self.is_hf_live = bool(self.hf_key)
 
         # is_live corresponds specifically to WatsonX live mode per review specifications
@@ -66,7 +80,7 @@ class GraniteReasoningClient:
         if self.is_watsonx_live and not self.last_error:
             return {
                 "engine": "watsonx",
-                "label": "IBM WatsonX Live API (Configured)",
+                "label": "IBM WatsonX Live API",
                 "model_id": self.model_id,
                 "is_fallback": False,
                 "fallback_reason": None
@@ -74,7 +88,7 @@ class GraniteReasoningClient:
         elif self.is_hf_live and not self.last_error:
             return {
                 "engine": "huggingface",
-                "label": f"Hugging Face Inference API (Configured - {self.model_id})",
+                "label": f"Hugging Face Inference API ({self.model_id})",
                 "model_id": self.model_id,
                 "is_fallback": False,
                 "fallback_reason": None
@@ -119,13 +133,12 @@ class GraniteReasoningClient:
                 self.last_reason = None
                 return result
             except Exception as e:
+                logger.exception("Hugging Face Granite inference failed")
                 self.last_error = type(e).__name__
                 msg = str(e)
                 if msg.startswith("Hugging Face API"):
-                    logger.warning("Hugging Face Granite fallback: %s", msg)
                     self.last_reason = msg
                 else:
-                    logger.exception("Hugging Face Granite inference failed")
                     self.last_reason = f"Hugging Face API Exception: {type(e).__name__} (see server log)"
 
         # Fallback Provider: Local Rule-Based Engine
@@ -137,7 +150,7 @@ class GraniteReasoningClient:
         from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 
         parameters = {
-            GenParams.MAX_NEW_TOKENS: 500,
+            GenParams.MAX_NEW_TOKENS: WATSONX_MAX_TOKENS,
             GenParams.TEMPERATURE: 0.2,
             GenParams.TOP_P: 0.9,
         }
@@ -154,62 +167,45 @@ class GraniteReasoningClient:
         return str(model.generate_text(prompt=prompt))
 
     def _call_huggingface_granite(self, audit_summary: dict[str, Any]) -> str:
-        """Calls Hugging Face Inference Router for IBM Granite models."""
+        """Calls the Hugging Face Inference Router (OpenAI-compatible chat API).
+
+        Tries the selected model first, then the Granite 4.2 fallbacks. Raises
+        RuntimeError with a safe, token-free message on failure.
+        """
         import requests
 
-        prompt = build_prompt(audit_summary)
+        headers = {"Authorization": f"Bearer {self.hf_key}", "Content-Type": "application/json"}
+        messages = [
+            {"role": "system", "content": "Synthesize concise, prioritized decarbonization recommendations."},
+            {"role": "user", "content": build_prompt(audit_summary)},
+        ]
+        candidates = [self.model_id] + [m for m in HF_FALLBACK_MODELS if m != self.model_id]
+        last_status = "Unknown"
+        for model_name in candidates:
+            payload = {"model": model_name, "messages": messages,
+                       "max_tokens": HF_MAX_TOKENS, "temperature": 0.2}
+            response = requests.post(HF_CHAT_URL, headers=headers, json=payload, timeout=REQUEST_TIMEOUT_S)
+            if response.status_code == 200:
+                text = self._extract_chat_text(response.json())
+                if text:
+                    return text
+                last_status = "empty response"
+            elif response.status_code == 402:
+                raise RuntimeError("Hugging Face API (402): Account has no inference credits. Fallback active.")
+            elif response.status_code == 403:
+                raise RuntimeError("Hugging Face API (403): Token missing Inference Provider permissions. Fallback active.")
+            else:
+                last_status = f"status {response.status_code}"
+        raise RuntimeError(f"Hugging Face API call failed ({last_status})")
 
-        headers = {
-            "Authorization": f"Bearer {self.hf_key}",
-            "Content-Type": "application/json"
-        }
-
-        # Candidate models on Hugging Face router
-        models_to_try = [self.model_id]
-        if self.model_id not in ("ibm-granite/granite-4.2-8b", "ibm-granite/granite-4.2-3b"):
-            models_to_try.append("ibm-granite/granite-4.2-8b")
-
-        chat_url = "https://router.huggingface.co/v1/chat/completions"
-
-        last_resp_info = None
-        for model_candidate in models_to_try:
-            payload = {
-                "model": model_candidate,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are an expert ESG sustainability auditor. Synthesize 3 concise, prioritized decarbonization recommendations."
-                    },
-                    {"role": "user", "content": prompt}
-                ],
-                "max_tokens": HF_MAX_TOKENS,
-                "temperature": 0.2
-            }
-            try:
-                resp = requests.post(chat_url, headers=headers, json=payload, timeout=25)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    choices = data.get("choices") or []
-                    if choices:
-                        msg_obj = choices[0].get("message") or {}
-                        raw_content = msg_obj.get("content")
-                        if raw_content is not None and str(raw_content).strip() and str(raw_content).strip() != "None":
-                            return str(raw_content).strip()
-                    # Empty or null response content, fall back to next candidate model
-                    last_resp_info = "Empty or null response content"
-                    continue
-                elif resp.status_code == 402:
-                    raise RuntimeError("Hugging Face API (402): Account has no inference credits. Fallback active.")
-                elif resp.status_code == 403:
-                    raise RuntimeError("Hugging Face API (403): Token missing Inference Provider permissions. Fallback active.")
-                else:
-                    last_resp_info = f"Status {resp.status_code}"
-            except (RuntimeError, requests.exceptions.RequestException):
-                raise
-            except Exception as exc:
-                last_resp_info = type(exc).__name__
-
-        raise RuntimeError(f"Hugging Face Inference call failed ({last_resp_info or 'Unknown'})")
+    @staticmethod
+    def _extract_chat_text(body: Any) -> str:
+        """Returns the assistant text from a chat-completions body, or '' if absent."""
+        try:
+            content = body["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError):
+            return ""
+        return content.strip() if isinstance(content, str) else ""
 
     def generate_structured_recommendations(self, audit_summary: dict[str, Any]) -> list[dict[str, Any]]:
         """
