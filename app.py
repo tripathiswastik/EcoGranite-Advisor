@@ -986,7 +986,9 @@ with tab_resources:
                     st.metric("Sec. 135 CSR Spend", f"{csr_pct:.2f}% of Net Profit", delta="Mandate: ≥ 2.0%")
             with ic2:
                 zld_label = {True: "Zero Liquid Discharge", False: "No ZLD", None: "ZLD not disclosed"}[zld]
-                st.metric("Water Recycling", f"{m.get('water_recycled_pct', 0.0):.1f}% Recycled", delta=zld_label)
+                w_rec = m.get("water_recycled_pct")
+                w_rec_str = f"{w_rec:.1f}% Recycled" if w_rec is not None else "Not disclosed"
+                st.metric("Water Recycling", w_rec_str, delta=zld_label)
 
         if dq.get("validation_warnings"):
             st.markdown("---")

@@ -492,19 +492,34 @@ class EcoGraniteAdvisor:
         recon = analysis.get("data_quality", {}).get("reconciliation_status", "UNVERIFIED")
 
         financial = 20.0
-        if m.get("renewable_pct", 0.0) < 60.0:
-            financial += (60.0 - m.get("renewable_pct", 0.0)) * 0.6
-        if m.get("scope_3_pct", 0.0) > 65.0:
+        ren_val = m.get("renewable_pct")
+        if ren_val is not None:
+            if ren_val < 60.0:
+                financial += (60.0 - ren_val) * 0.6
+        else:
+            financial += 10.0
+
+        s3_val = m.get("scope_3_pct")
+        if s3_val is not None and s3_val > 65.0:
             financial += 15.0
+
         if recon != "PASSED":
             financial += 35.0
         financial = round(min(100.0, max(10.0, financial)), 1)
 
         impact = 30.0
-        total = m.get("total_ghg", 0.0)
-        impact += 35.0 if total > 100000.0 else (20.0 if total > 50000.0 else 0.0)
-        impact += 15.0 if m.get("waste_diverted_pct", 0.0) < 75.0 else 0.0
-        impact += 10.0 if m.get("water_recycled_pct", 0.0) < 50.0 else 0.0
+        total = m.get("total_ghg")
+        if total is not None:
+            impact += 35.0 if total > 100000.0 else (20.0 if total > 50000.0 else 0.0)
+
+        waste_val = m.get("waste_diverted_pct")
+        if waste_val is not None and waste_val < 75.0:
+            impact += 15.0
+
+        water_val = m.get("water_recycled_pct")
+        if water_val is not None and water_val < 50.0:
+            impact += 10.0
+
         impact = round(min(100.0, max(15.0, impact)), 1)
 
         quadrants = {
@@ -566,12 +581,12 @@ class EcoGraniteAdvisor:
     def _csrd_score(base: float, m: dict[str, Any]) -> dict[str, Any]:
         score = base
         penalties: list[str] = []
-        renewable = m.get("renewable_pct", 0.0)
+        renewable = m.get("renewable_pct") or 0.0
         if renewable < CSRD_RENEWABLE_HURDLE_PCT:
             penalty = round((CSRD_RENEWABLE_HURDLE_PCT - renewable) * 0.5, 1)
             score -= penalty
             penalties.append(f"ESRS E1 Penalty: Renewable power {renewable:.1f}% is below 80% EU hurdle (-{penalty} pts)")
-        supplier = m.get("supplier_signoff_pct", 0.0)
+        supplier = m.get("supplier_signoff_pct") or 0.0
         if supplier < CSRD_SUPPLIER_HURDLE_PCT:
             score -= 10.0
             penalties.append(f"ESRS G1 Penalty: Supplier Code sign-off {supplier:.1f}% < 95% threshold (-10 pts)")
@@ -588,7 +603,9 @@ class EcoGraniteAdvisor:
             score -= 15.0
             shown = "not disclosed" if target is None else f"{target:.1f}%"
             penalties.append(f"IFRS S2 Transition Risk: 2030 emissions reduction target {shown} is below 45% SBTi 1.5°C threshold (-15 pts)")
-        if m.get("scope_3_pct", 0.0) > 65.0 and m.get("supplier_signoff_pct", 0.0) < 90.0:
+        s3_pct = m.get("scope_3_pct") or 0.0
+        sup_pct = m.get("supplier_signoff_pct") or 0.0
+        if s3_pct > 65.0 and sup_pct < 90.0:
             score -= 10.0
             penalties.append("IFRS S2 Supply Chain Risk: Unmitigated Scope 3 exposure > 65% with < 90% supplier coverage (-10 pts)")
         score = round(max(0.0, min(100.0, score)), 1)

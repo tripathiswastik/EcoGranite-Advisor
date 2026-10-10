@@ -603,6 +603,25 @@ class TestMethodologyHardeningAndReliability(unittest.TestCase):
         self.assertEqual(analysis["data_quality"]["reconciliation_status"], "PASSED")
         self.assertGreater(analysis["esg_readiness_score"], 90.0)
 
+    def test_evaluate_double_materiality_with_none_metrics(self) -> None:
+        """Verifies that missing metrics (e.g. water_recycled_pct=None) do not raise TypeError."""
+        mock_analysis = {
+            "can_audit": True,
+            "metrics": {
+                "renewable_pct": None,
+                "scope_3_pct": None,
+                "total_ghg": None,
+                "waste_diverted_pct": None,
+                "water_recycled_pct": None,
+            },
+            "data_quality": {"reconciliation_status": "PASSED"}
+        }
+        dm = self.advisor.evaluate_double_materiality(mock_analysis)
+        self.assertIn("financial_risk_score", dm)
+        self.assertIn("impact_materiality_score", dm)
+        self.assertIn("quadrant", dm)
+        self.assertEqual(dm["standard"], "EU CSRD ESRS 1 & ESRS 2")
+
 
 if __name__ == "__main__":
     unittest.main()
