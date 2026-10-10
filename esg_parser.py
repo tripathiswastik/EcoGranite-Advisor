@@ -19,7 +19,7 @@ import re
 import tempfile
 import zipfile
 import xml.etree.ElementTree as ET
-from typing import Any, Optional
+from typing import Any, Optional, Pattern, Union
 
 logger = logging.getLogger(__name__)
 
@@ -263,10 +263,131 @@ def _parse_pdf_or_docx_bytes(file_bytes: bytes, file_name: str) -> dict[str, Any
 # ---------------------------------------------------------------------------
 _NUMBER = r"(\d[\d,]*(?:\.\d+)?)"
 
+# Pre-compiled regular expressions for high-throughput text extraction
+_RE_CO2_UNIT = re.compile(r"\bCO2e?\b", re.IGNORECASE)
 
-def _find_number(pattern: str, text: str) -> Optional[float]:
+_RE_COMPANY_PRIMARY = re.compile(
+    r"(?:Company(?:\s*Name)?|Entity|Corporation|Organization)\s*[:\-]\s*([^\n\r]+)", re.IGNORECASE
+)
+_RE_COMPANY_FALLBACK = re.compile(r"Reporting\s*Metric\s*\n\s*([^\n\r]+)", re.IGNORECASE)
+_RE_YEAR = re.compile(
+    r"(?:FY|fiscal\s*year|reporting\s*year|reporting\s*period)\s*[:\-]?\s*(?:FY)?(20\d{2})", re.IGNORECASE
+)
+
+_RE_SCOPE_1_COLON = re.compile(
+    r"(?:Scope\s*1(?!\s*[\-–]\s*[23])(?:\s*(?:Direct|\(Direct\)|operational))?|Direct\s*Operational\s*Emissions(?:\s*\(Scope\s*1\))?|Direct\s*(?:GHG)?\s*emissions(?:\s*\(Scope\s*1\))?)\s*[:\-]\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_SCOPE_1_NEWLINE = re.compile(
+    r"(?:Scope\s*1(?!\s*[\-–]\s*[23])\s*(?:Direct|\(Direct\))|Direct\s*Operational\s*Emissions)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_SCOPE_1_FALLBACK = re.compile(
+    r"(?:Scope\s*1(?!\s*[\-–]\s*[23])|Direct\s*Emissions)\s*[:\-]?\s*" + _NUMBER,
+    re.IGNORECASE
+)
+
+_RE_SCOPE_2_COLON = re.compile(
+    r"(?:Scope\s*2(?!\s*[\-–]\s*[3])(?:\s*(?:indirect|electricity))?|Purchased\s*Electricity\s*Emissions|Purchased\s*Energy\s*Emissions|Indirect\s*(?:GHG)?\s*emissions(?:\s*\(Scope\s*2\))?)\s*[:\-]\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_SCOPE_2_NEWLINE = re.compile(
+    r"(?:Scope\s*2\s*(?:Electricity|Indirect|\(Indirect\)|\(Electricity\))|Purchased\s*Electricity)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_SCOPE_2_FALLBACK = re.compile(
+    r"(?:Scope\s*2|Purchased\s*Electricity)\s*[:\-]?\s*" + _NUMBER,
+    re.IGNORECASE
+)
+
+_RE_SCOPE_3_COLON = re.compile(
+    r"(?:Scope\s*3(?:\s*value\s*chain)?\s*emissions?|Value\s*Chain\s*Emissions|Supply\s*Chain\s*Emissions)\s*[:\-]\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_SCOPE_3_NEWLINE = re.compile(
+    r"(?:Scope\s*3\s*(?:Value\s*Chain|\(Value\s*Chain\))|Value\s*Chain\s*Emissions)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_SCOPE_3_FALLBACK = re.compile(r"Scope\s*3\s*[:\-]?\s*" + _NUMBER, re.IGNORECASE)
+
+_RE_TOTAL_GHG_COLON = re.compile(
+    r"(?:Total\s*GHG\s*footprint|Total\s*Carbon\s*Footprint|Total\s*GHG\s*emissions|Total\s*emissions)\s*[:\-]\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_TOTAL_GHG_NEWLINE = re.compile(
+    r"(?:Total\s*GHG\s*Footprint|Total\s*Carbon\s*Footprint)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER,
+    re.IGNORECASE
+)
+
+_RE_TARGET_2030 = re.compile(
+    r"(?:2030\s*Science[\s\-]Based\s*Target(?:\s*\(SBTi\))?|SBTi\s*2030\s*Target|2030\s*Target)\s*[:\-]?\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_YOY_COLON = re.compile(
+    r"(?:YoY\s*progress\s*achieved|YoY\s*Carbon\s*Reduction|YoY\s*emissions?\s*reduction|Year[\s\-]over[\s\-]Year\s*reduction)\s*[:\-]\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_YOY_NEWLINE = re.compile(
+    r"(?:YoY\s*Emission\s*Cut|YoY\s*Carbon\s*Reduction)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER,
+    re.IGNORECASE
+)
+
+_RE_TOTAL_MWH = re.compile(
+    r"(?:Total\s*electricity\s*consumed|Total\s*Energy\s*Usage|Total\s*Energy\s*Consumption|Total\s*power\s*consumed)\s*[:\-]?\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_RENEWABLE_MWH = re.compile(
+    r"(?:Renewable\s*electricity\s*sourced|Renewable\s*energy\s*sourced|Renewable\s*power\s*consumed|Clean\s*electricity\s*consumed)\s*[:\-]?\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_RENEWABLE_SHARE_COLON = re.compile(
+    r"(?:Renewable\s*energy\s*share|Clean\s*Power\s*Ratio|Renewable\s*electricity\s*share|Renewable\s*share|Green\s*power\s*ratio|Renewable\s*Power\s*Share)\s*[:\-]\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_RENEWABLE_SHARE_NEWLINE = re.compile(
+    r"(?:Renewable\s*Power\s*Share|Clean\s*Power\s*Ratio|Renewable\s*Energy\s*Share)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_RE100 = re.compile(r"RE100\s*(?:Pledged|Committed|Member)?\s*[:\-]?\s*(Yes|True)", re.IGNORECASE)
+
+_RE_WATER_WITHDRAWAL = re.compile(
+    r"(?:Total\s*water\s*withdrawal|Water\s*withdrawal|Total\s*water\s*usage)\s*[:\-]?\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_WATER_RECYCLED = re.compile(
+    r"(?:Water\s*recycled\s*(?:percentage|share|ratio)?|Wastewater\s*Recovery\s*Rate|Water\s*recycling\s*rate)\s*[:\-]?\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_WASTE_DIVERTED_COLON = re.compile(
+    r"(?:Waste\s*diverted\s*from\s*landfill|Landfill\s*Diversion\s*Rate|Waste\s*diversion\s*rate|Waste\s*Diversion\s*/\s*Recycled)\s*[:\-]\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_WASTE_DIVERTED_NEWLINE = re.compile(
+    r"(?:Waste\s*Diversion|Landfill\s*Diversion)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER,
+    re.IGNORECASE
+)
+
+_RE_FEMALE_BOARD_COLON = re.compile(
+    r"(?:Female\s*board\s*representation|Female\s*Representation\s*on\s*Board|Women\s*on\s*board|Board\s*gender\s*diversity|Board\s*Gender\s*Diversity)\s*[:\-]\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_FEMALE_BOARD_NEWLINE = re.compile(
+    r"(?:Board\s*Gender\s*Diversity|Female\s*Representation)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_INDEPENDENT_DIRECTORS = re.compile(
+    r"(?:Independent\s*directors\s*(?:share|percentage|ratio)?|Board\s*Independence\s*Ratio|Independent\s*board\s*ratio)\s*[:\-]?\s*" + _NUMBER,
+    re.IGNORECASE
+)
+_RE_SUPPLIER_CODE = re.compile(
+    r"(?:Supplier\s*Code\s*Sign[\s\-]off|Supplier\s*code\s*of\s*conduct\s*sign[\s\-]off|Vendor\s*code\s*sign[\s\-]off)\s*[:\-]?\s*" + _NUMBER,
+    re.IGNORECASE
+)
+
+
+def _find_number(pattern: Union[str, Pattern[str]], text: str) -> Optional[float]:
     """Returns the first finite number captured by ``pattern`` or None."""
-    match = re.search(pattern, text, re.IGNORECASE)
+    match = pattern.search(text) if isinstance(pattern, Pattern) else re.search(pattern, text, re.IGNORECASE)
     if not match:
         return None
     try:
@@ -284,106 +405,59 @@ def extract_esg_from_text(text: str, source_name: str) -> dict[str, Any]:
     """
     clean_text = text.replace("&amp;", "&")
     # Mask CO2/CO2e units so their trailing digits do not interfere with numeric extraction
-    clean_text = re.sub(r"(?i)\bCO2e?\b", "CARBON_UNIT", clean_text)
+    clean_text = _RE_CO2_UNIT.sub("CARBON_UNIT", clean_text)
     errors: list[str] = []
     emissions: dict[str, Any] = {}
     energy: dict[str, Any] = {}
     water_waste: dict[str, Any] = {}
     governance: dict[str, Any] = {}
 
-    def _get_metric(p_colon: str, p_newline: str) -> Optional[float]:
+    def _get_metric(p_colon: Union[str, Pattern[str]], p_newline: Union[str, Pattern[str]]) -> Optional[float]:
         val = _find_number(p_colon, clean_text)
         return val if val is not None else _find_number(p_newline, clean_text)
 
-    company = re.search(
-        r"(?:Company(?:\s*Name)?|Entity|Corporation|Organization)\s*[:\-]\s*([^\n\r]+)", clean_text, re.IGNORECASE
-    )
+    company = _RE_COMPANY_PRIMARY.search(clean_text)
     if not company:
-        company = re.search(r"Reporting\s*Metric\s*\n\s*([^\n\r]+)", clean_text, re.IGNORECASE)
-    year = re.search(r"(?:FY|fiscal\s*year|reporting\s*year|reporting\s*period)\s*[:\-]?\s*(?:FY)?(20\d{2})", clean_text, re.IGNORECASE)
+        company = _RE_COMPANY_FALLBACK.search(clean_text)
+    year = _RE_YEAR.search(clean_text)
 
     # Scope 1 (Direct Operational Emissions)
-    scope_1 = _get_metric(
-        r"(?:Scope\s*1(?!\s*[\-–]\s*[23])(?:\s*(?:Direct|\(Direct\)|operational))?|Direct\s*Operational\s*Emissions(?:\s*\(Scope\s*1\))?|Direct\s*(?:GHG)?\s*emissions(?:\s*\(Scope\s*1\))?)\s*[:\-]\s*" + _NUMBER,
-        r"(?:Scope\s*1(?!\s*[\-–]\s*[23])\s*(?:Direct|\(Direct\))|Direct\s*Operational\s*Emissions)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
-    )
+    scope_1 = _get_metric(_RE_SCOPE_1_COLON, _RE_SCOPE_1_NEWLINE)
     if scope_1 is None:
-        scope_1 = _find_number(r"(?:Scope\s*1(?!\s*[\-–]\s*[23])|Direct\s*Emissions)\s*[:\-]?\s*" + _NUMBER, clean_text)
+        scope_1 = _find_number(_RE_SCOPE_1_FALLBACK, clean_text)
 
     # Scope 2 (Indirect / Purchased Electricity)
-    scope_2 = _get_metric(
-        r"(?:Scope\s*2(?!\s*[\-–]\s*[3])(?:\s*(?:indirect|electricity))?|Purchased\s*Electricity\s*Emissions|Purchased\s*Energy\s*Emissions|Indirect\s*(?:GHG)?\s*emissions(?:\s*\(Scope\s*2\))?)\s*[:\-]\s*" + _NUMBER,
-        r"(?:Scope\s*2\s*(?:Electricity|Indirect|\(Indirect\)|\(Electricity\))|Purchased\s*Electricity)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
-    )
+    scope_2 = _get_metric(_RE_SCOPE_2_COLON, _RE_SCOPE_2_NEWLINE)
     if scope_2 is None:
-        scope_2 = _find_number(r"(?:Scope\s*2|Purchased\s*Electricity)\s*[:\-]?\s*" + _NUMBER, clean_text)
+        scope_2 = _find_number(_RE_SCOPE_2_FALLBACK, clean_text)
 
     # Scope 3 (Value Chain / Supply Chain)
-    scope_3 = _get_metric(
-        r"(?:Scope\s*3(?:\s*value\s*chain)?\s*emissions?|Value\s*Chain\s*Emissions|Supply\s*Chain\s*Emissions)\s*[:\-]\s*" + _NUMBER,
-        r"(?:Scope\s*3\s*(?:Value\s*Chain|\(Value\s*Chain\))|Value\s*Chain\s*Emissions)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
-    )
+    scope_3 = _get_metric(_RE_SCOPE_3_COLON, _RE_SCOPE_3_NEWLINE)
     if scope_3 is None:
-        scope_3 = _find_number(r"Scope\s*3\s*[:\-]?\s*" + _NUMBER, clean_text)
+        scope_3 = _find_number(_RE_SCOPE_3_FALLBACK, clean_text)
 
     # Total GHG / Total Carbon Footprint
-    total_ghg = _get_metric(
-        r"(?:Total\s*GHG\s*footprint|Total\s*Carbon\s*Footprint|Total\s*GHG\s*emissions|Total\s*emissions)\s*[:\-]\s*" + _NUMBER,
-        r"(?:Total\s*GHG\s*Footprint|Total\s*Carbon\s*Footprint)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
-    )
+    total_ghg = _get_metric(_RE_TOTAL_GHG_COLON, _RE_TOTAL_GHG_NEWLINE)
 
     # SBTi 2030 Target & YoY progress
-    target_2030 = _find_number(
-        r"(?:2030\s*Science[\s\-]Based\s*Target(?:\s*\(SBTi\))?|SBTi\s*2030\s*Target|2030\s*Target)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
-    )
-    yoy_reduction = _get_metric(
-        r"(?:YoY\s*progress\s*achieved|YoY\s*Carbon\s*Reduction|YoY\s*emissions?\s*reduction|Year[\s\-]over[\s\-]Year\s*reduction)\s*[:\-]\s*" + _NUMBER,
-        r"(?:YoY\s*Emission\s*Cut|YoY\s*Carbon\s*Reduction)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
-    )
+    target_2030 = _find_number(_RE_TARGET_2030, clean_text)
+    yoy_reduction = _get_metric(_RE_YOY_COLON, _RE_YOY_NEWLINE)
 
     # Energy: Total consumption, renewable sourced, and renewable share / clean power ratio
-    total_mwh = _find_number(
-        r"(?:Total\s*electricity\s*consumed|Total\s*Energy\s*Usage|Total\s*Energy\s*Consumption|Total\s*power\s*consumed)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
-    )
-    renewable_mwh = _find_number(
-        r"(?:Renewable\s*electricity\s*sourced|Renewable\s*energy\s*sourced|Renewable\s*power\s*consumed|Clean\s*electricity\s*consumed)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
-    )
-    renewable_share = _get_metric(
-        r"(?:Renewable\s*energy\s*share|Clean\s*Power\s*Ratio|Renewable\s*electricity\s*share|Renewable\s*share|Green\s*power\s*ratio|Renewable\s*Power\s*Share)\s*[:\-]\s*" + _NUMBER,
-        r"(?:Renewable\s*Power\s*Share|Clean\s*Power\s*Ratio|Renewable\s*Energy\s*Share)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
-    )
-    re100_match = re.search(r"RE100\s*(?:Pledged|Committed|Member)?\s*[:\-]?\s*(Yes|True)", clean_text, re.IGNORECASE)
+    total_mwh = _find_number(_RE_TOTAL_MWH, clean_text)
+    renewable_mwh = _find_number(_RE_RENEWABLE_MWH, clean_text)
+    renewable_share = _get_metric(_RE_RENEWABLE_SHARE_COLON, _RE_RENEWABLE_SHARE_NEWLINE)
+    re100_match = _RE_RE100.search(clean_text)
 
     # Water & Waste: Withdrawal, recycled / recovery, diversion from landfill
-    water_withdrawal = _find_number(
-        r"(?:Total\s*water\s*withdrawal|Water\s*withdrawal|Total\s*water\s*usage)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
-    )
-    water_recycled = _find_number(
-        r"(?:Water\s*recycled\s*(?:percentage|share|ratio)?|Wastewater\s*Recovery\s*Rate|Water\s*recycling\s*rate)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
-    )
-    waste_diverted = _get_metric(
-        r"(?:Waste\s*diverted\s*from\s*landfill|Landfill\s*Diversion\s*Rate|Waste\s*diversion\s*rate|Waste\s*Diversion\s*/\s*Recycled)\s*[:\-]\s*" + _NUMBER,
-        r"(?:Waste\s*Diversion|Landfill\s*Diversion)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
-    )
+    water_withdrawal = _find_number(_RE_WATER_WITHDRAWAL, clean_text)
+    water_recycled = _find_number(_RE_WATER_RECYCLED, clean_text)
+    waste_diverted = _get_metric(_RE_WASTE_DIVERTED_COLON, _RE_WASTE_DIVERTED_NEWLINE)
 
     # Social & Governance: Female board rep, independent directors, supplier code
-    female_board = _get_metric(
-        r"(?:Female\s*board\s*representation|Female\s*Representation\s*on\s*Board|Women\s*on\s*board|Board\s*gender\s*diversity|Board\s*Gender\s*Diversity)\s*[:\-]\s*" + _NUMBER,
-        r"(?:Board\s*Gender\s*Diversity|Female\s*Representation)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
-    )
-    independent_directors = _find_number(
-        r"(?:Independent\s*directors\s*(?:share|percentage|ratio)?|Board\s*Independence\s*Ratio|Independent\s*board\s*ratio)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
-    )
-    supplier_code = _find_number(
-        r"(?:Supplier\s*Code\s*Sign[\s\-]off|Supplier\s*code\s*of\s*conduct\s*sign[\s\-]off|Vendor\s*code\s*sign[\s\-]off)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
-    )
+    female_board = _get_metric(_RE_FEMALE_BOARD_COLON, _RE_FEMALE_BOARD_NEWLINE)
+    independent_directors = _find_number(_RE_INDEPENDENT_DIRECTORS, clean_text)
+    supplier_code = _find_number(_RE_SUPPLIER_CODE, clean_text)
 
     # Validate essential requirements
     if scope_1 is None:

@@ -46,18 +46,33 @@ if os.path.exists(_CSS_PATH):
         st.markdown(f"<style>{_f.read()}</style>", unsafe_allow_html=True)
 
 
+@st.cache_resource
 def get_advisor(model_id: str, hf_api_key: Optional[str] = None) -> EcoGraniteAdvisor:
-    """Instantiates the EcoGraniteAdvisor instance."""
+    """Instantiates and caches the EcoGraniteAdvisor singleton."""
     return EcoGraniteAdvisor(model_id=model_id, hf_api_key=hf_api_key)
 
 
+@st.cache_data
 def load_dataset_file(filename: str) -> dict[str, Any]:
-    """Helper to load a dataset (.json, .txt, etc.) from disk."""
+    """Helper to load a dataset (.json, .txt, etc.) from disk with in-memory caching."""
     base_dir = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(base_dir, filename)
     if os.path.exists(path):
         return parse_document(path)
     return {"company_name": "Sample Entity", "status": "extraction_failed", "errors": ["File not found"]}
+
+
+@st.cache_data
+def parse_uploaded_bytes(file_bytes: bytes, filename: str) -> dict[str, Any]:
+    """Parses uploaded file bytes with caching to avoid re-parsing on widget interactions."""
+    import io
+    return parse_document(io.BytesIO(file_bytes), filename=filename)
+
+
+@st.cache_data
+def get_scorecard_data(_advisor: EcoGraniteAdvisor) -> list[dict[str, Any]]:
+    """Caches cross-framework scorecard generation across dashboard reruns."""
+    return _advisor.generate_multi_framework_scorecard()
 
 
 def full_width() -> dict[str, Any]:
@@ -154,7 +169,7 @@ with st.sidebar:
         if uploaded_file is not None:
             try:
                 with st.spinner(f"Ingesting {uploaded_file.name} via Docling Pipeline..."):
-                    raw_data = advisor.load_document(uploaded_file)
+                    raw_data = parse_uploaded_bytes(uploaded_file.getvalue(), uploaded_file.name)
                 st.success(f"Parsed: {uploaded_file.name}")
             except Exception as err:
                 st.error(f"Error parsing file: {err}")
@@ -585,7 +600,7 @@ with tab_exec:
     st.markdown("### 🏆 Multi-Company Framework Scorecard Summary")
     st.caption("Cross-framework benchmark comparison across GRI Baseline, CSRD ESRS Strict, and SEBI BRSR Core.")
 
-    scorecard_data = advisor.generate_multi_framework_scorecard()
+    scorecard_data = get_scorecard_data(advisor)
     df_sc = pd.DataFrame(scorecard_data)
     df_sc.columns = ["Company Entity", "Audit Cycle", "GRI Baseline Score", "CSRD ESRS Strict Score", "SEBI BRSR Core Status", "Primary Audit Priority"]
     safe_dataframe(df_sc)

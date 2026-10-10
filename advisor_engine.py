@@ -153,6 +153,7 @@ class EcoGraniteAdvisor:
     def __init__(self, model_id: str = DEFAULT_MODEL_ID, hf_api_key: Optional[str] = None) -> None:
         self.model_id = model_id
         self.granite_client = GraniteReasoningClient(model_id=model_id, hf_api_key=hf_api_key)
+        self._scorecard_cache: dict[str, list[dict[str, Any]]] = {}
 
     def load_document(self, file_source: Any) -> dict[str, Any]:
         """Loads and normalizes an ESG report via the parser pipeline."""
@@ -539,8 +540,12 @@ class EcoGraniteAdvisor:
         """Computes the cross-framework scorecard from the bundled sample files.
 
         All scores are calculated live; nothing is hard-coded.
+        Results are cached per directory to avoid redundant disk I/O and parsing.
         """
         folder = base_dir or os.path.dirname(os.path.abspath(__file__))
+        if hasattr(self, "_scorecard_cache") and folder in self._scorecard_cache:
+            return [dict(row) for row in self._scorecard_cache[folder]]
+
         rows = []
         for display_name, filename in SCORECARD_SAMPLES:
             analysis = self.analyze_compliance(self.load_document(os.path.join(folder, filename)))
@@ -555,7 +560,9 @@ class EcoGraniteAdvisor:
                 "sebi_brsr_status": "Not assessed (no BRSR Core data model)",
                 "primary_audit_priority": roadmap[0]["title"] if roadmap else "N/A",
             })
-        return rows
+        if hasattr(self, "_scorecard_cache"):
+            self._scorecard_cache[folder] = rows
+        return [dict(row) for row in rows]
 
     def calculate_framework_score(self, analysis: dict[str, Any], framework: str = "GRI Baseline") -> dict[str, Any]:
         """Recalculates readiness under GRI Baseline, CSRD (ESRS Strict) or ISSB (IFRS S2)."""
