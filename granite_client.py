@@ -112,12 +112,13 @@ class GraniteReasoningClient:
                 self.last_reason = None
                 return result
             except Exception as e:
-                logger.exception("Hugging Face Granite inference failed")
                 self.last_error = type(e).__name__
                 msg = str(e)
                 if msg.startswith("Hugging Face API"):
+                    logger.warning("Hugging Face Granite fallback: %s", msg)
                     self.last_reason = msg
                 else:
+                    logger.exception("Hugging Face Granite inference failed")
                     self.last_reason = f"Hugging Face API Exception: {type(e).__name__} (see server log)"
 
         # Fallback Provider: Local Rule-Based Engine
