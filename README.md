@@ -3,7 +3,7 @@
 [![Challenge](https://img.shields.io/badge/Challenge-IBM%20SkillsBuild%20AI%20Builders-052F5F.svg?style=flat&logo=IBM)](https://github.com/IBM-SkillsBuild-AI-Builders-Challenge)
 [![Model](https://img.shields.io/badge/Model-IBM%20Granite%203.0-blue.svg)](https://huggingface.co/ibm-granite)
 [![Parser](https://img.shields.io/badge/Parser-IBM%20Docling%20Bridge-green.svg)](https://github.com/DS4SD/docling)
-[![Tests](https://img.shields.io/badge/Tests-Passing%20(9%2F9)-brightgreen.svg)](https://github.com/tripathiswastik/EcoGranite-Advisor)
+[![Tests](https://img.shields.io/badge/Tests-Passing%20(32%2F32)-brightgreen.svg)](https://github.com/tripathiswastik/EcoGranite-Advisor)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Author](https://img.shields.io/badge/Author-Swastik%20Tripathi-blueviolet.svg)](https://github.com/tripathiswastik)
 
@@ -103,7 +103,7 @@ Traditional text extraction tools flatten these tables, misaligning GHG rows wit
 9. **🏆 Multi-Company Framework Scorecard Summary (v3.0)**:
    - Standardized cross-framework audit scorecard comparing **EcoGlobal**, **Siemens AG**, and **Infosys Limited** across GRI Baseline, CSRD ESRS Strict, and SEBI BRSR Core.
 10. **🧪 Comprehensive Adversarial Test Suite (`test_advisor.py`)**:
-   - 10 automated unit tests (100% passing) validating continuous scoring, reconciliation, refusal, and v3.0 sector/double materiality models.
+   - 32 automated unit tests (100% passing) validating continuous scoring, reconciliation, refusal, and v3.0 sector/double materiality models.
 
 ---
 
@@ -125,15 +125,36 @@ EcoGranite-Advisor/
 ├── advisor_engine.py                # Main CLI entrypoint & continuous compliance auditor
 ├── esg_parser.py                    # IBM Docling PDF/DOCX bridge, reconciliation & validator
 ├── granite_client.py                # Dual IBM Granite client (WatsonX API + Local Reasoning)
-├── test_advisor.py                  # Adversarial unit test suite (9 tests)
+├── test_advisor.py                  # Adversarial unit test suite (32 tests)
 ├── sample_esg_report.json           # Sample 1: Compliant Leader ESG dataset (EcoGlobal)
 ├── sample_esg_report_india.json     # Sample 2: India SEBI BRSR Core dataset (Infosys Limited)
 ├── sample_esg_report_siemens.json   # Sample 3: Global Enterprise benchmark (Siemens AG)
 ├── sample_esg_report_poor.json      # Sample 4: Poor / Lagging ESG dataset (CarbonHeavy)
 ├── sample_esg_report_invalid.json   # Sample 5: Incoherent / Reconciliation failure dataset
 ├── ECOGRANITE_FRAMEWORK.md          # 5-Pillar Comprehensive ESG Decarbonization Specification
-├── requirements.txt                 # Minimal dependencies for Docling, WatsonX, and Streamlit
+├── .env.example                     # Environment template for WatsonX & Hugging Face credentials
+├── requirements.txt                 # Minimal dependencies for Docling, WatsonX, HF, and Streamlit
 └── README.md                        # Challenge documentation & architecture specification
+```
+
+---
+
+## 🔑 LLM Provider Setup & Configuration
+
+EcoGranite-Advisor supports three tiered execution modes for IBM Granite foundation models:
+
+1. **Hugging Face Inference Router** (`HUGGINGFACE_API_KEY` or `HF_TOKEN`):
+   - Direct cloud inference for IBM Granite models (e.g. `ibm-granite/granite-4.2-8b`, `ibm-granite/granite-4.2-3b`, `ibm-granite/granite-3.0-8b-instruct`).
+   - Requires fine-grained token with `inference.serverless.write` permission.
+2. **IBM WatsonX AI** (`WATSONX_APIKEY` & `WATSONX_PROJECT_ID`):
+   - Direct enterprise foundation model inference via IBM WatsonX Cloud SDK (`ibm-watsonx-ai`).
+3. **Local Deterministic Reasoning Engine (Offline Fallback)**:
+   - Always available with zero API keys or network connection required.
+   - Evaluates disclosures against GHG Protocol math and generates auditable prioritized recommendations.
+
+To configure API providers, copy the template and provide your credentials:
+```bash
+cp .env.example .env
 ```
 
 ---
@@ -192,10 +213,14 @@ Rating Level    : [A] EXCELLENT (ESG LEADER)
    ----------------------------------------------------------------------------
    Metric                                 Value      Score    Status       Risk
    ----------------------------------------------------------------------------
-   Renewable Energy Share (Target >= 60%) 70.0%      30.0/30  Compliant    Low
-   YoY Emissions Reduction (Target >= 5%) 8.4%       30.0/30  Compliant (On Track) Low
-   Waste Diversion (Target >= 75%)        86.5%      20.0/20  Compliant    Low
-   Board Diversity (Target >= 40%)        44.0%      20.0/20  Compliant    Low
+   Renewable Energy Share (Target >= 60%) 70.0%      25.0/25.0 Compliant    Low
+   YoY Emissions Reduction (Target >= 5%) 8.4%       25.0/25.0 Compliant (On Track) Low
+   Waste Diversion (Target >= 75%)        86.5%      10.0/10.0 Compliant    Low
+   Board Diversity (Target >= 40%)        44.0%      7.5/7.5  Compliant    Low
+   Independent Directors (Target >= 75%)  80.0%      7.5/7.5  Compliant    Low
+   Gender Pay Equity (Target >= 0.98)     0.98       7.5/7.5  Compliant    Low
+   Supplier Code Sign-off (Target >= 95%) 98.2%      7.5/7.5  Compliant    Low
+   GHG Scope Reconciliation (S1+S2+S3)    PASSED     5.0/5.0  Compliant    Low
    ----------------------------------------------------------------------------
 
 STRATEGIC RECOMMENDATIONS (IBM Granite 3.0 Reasoning):

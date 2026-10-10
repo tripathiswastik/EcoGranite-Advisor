@@ -555,6 +555,9 @@ def _resolve_input_path(raw_path: str) -> str:
 
 def main() -> int:
     """CLI entry point. Returns 0 on success, 1 on error, 2 if extraction was refused."""
+    from granite_client import load_environment
+    load_environment()
+
     parser = argparse.ArgumentParser(description="EcoGranite-Advisor: Autonomous ESG Sustainability Auditor")
     parser.add_argument("--input", "-i", default="sample_esg_report.json",
                         help="Path to input ESG document (.json, .pdf, or .docx).")

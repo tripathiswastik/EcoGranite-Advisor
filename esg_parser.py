@@ -42,11 +42,11 @@ except (ImportError, OSError):
 try:
     from pypdf import PdfReader
     PDF_PARSER_AVAILABLE = True
-except (ImportError, Exception):
+except ImportError:
     try:
         from PyPDF2 import PdfReader  # type: ignore[no-redef]
         PDF_PARSER_AVAILABLE = True
-    except (ImportError, Exception):
+    except ImportError:
         PdfReader = None  # type: ignore[assignment,misc]
         PDF_PARSER_AVAILABLE = False
 

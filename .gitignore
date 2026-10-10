@@ -1,4 +1,23 @@
+# Python Bytecode & Cache
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+
+# Environment Variables & Secrets
 .env
+.env.*
+!.env.example
+_env
+*_env*
+
+# Testing & Linting Cache
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.swp
+*.swo

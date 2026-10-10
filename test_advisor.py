@@ -29,7 +29,7 @@ from esg_parser import (
     parse_document,
     validate_and_normalize_esg,
 )
-from granite_client import GraniteReasoningClient
+from granite_client import GraniteReasoningClient, build_prompt, load_environment
 
 
 class TestEcoGraniteAdvisor(unittest.TestCase):
@@ -37,7 +37,7 @@ class TestEcoGraniteAdvisor(unittest.TestCase):
         env = mock.patch.dict(os.environ, {}, clear=False)
         env.start()
         self.addCleanup(env.stop)
-        for name in ("WATSONX_APIKEY", "WATSONX_PROJECT_ID", "HUGGINGFACE_API_KEY"):
+        for name in ("WATSONX_APIKEY", "WATSONX_PROJECT_ID", "HUGGINGFACE_API_KEY", "HF_TOKEN"):
             os.environ.pop(name, None)
         self.advisor = EcoGraniteAdvisor()
 
@@ -290,7 +290,7 @@ class TestReviewRegressions(unittest.TestCase):
         env = mock.patch.dict(os.environ, {}, clear=False)
         env.start()
         self.addCleanup(env.stop)
-        for name in ("WATSONX_APIKEY", "WATSONX_PROJECT_ID", "HUGGINGFACE_API_KEY"):
+        for name in ("WATSONX_APIKEY", "WATSONX_PROJECT_ID", "HUGGINGFACE_API_KEY", "HF_TOKEN"):
             os.environ.pop(name, None)
         self.advisor = EcoGraniteAdvisor()
 
@@ -383,6 +383,87 @@ class TestReviewRegressions(unittest.TestCase):
         result = parse_document(fake_huge_stream)
         self.assertEqual(result["status"], "extraction_failed")
         self.assertTrue(any("exceeds" in e for e in result["errors"]))
+
+    def test_success_returns_model_text(self) -> None:
+        client = GraniteReasoningClient()
+        client.hf_key = "test_hf_token"
+        client.is_hf_live = True
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.json.return_value = {
+            "choices": [{"message": {"content": "Prioritize Scope 3 supplier abatement."}}]
+        }
+        with mock.patch("requests.post", return_value=fake_resp):
+            insights = client.generate_esg_insights({"metrics": {}, "rating_tier": "GOLD"})
+            self.assertIn("Prioritize Scope 3 supplier abatement.", insights)
+            self.assertIsNone(client.last_error)
+
+    def test_null_or_empty_content_falls_back_instead_of_printing_none(self) -> None:
+        client = GraniteReasoningClient()
+        client.hf_key = "test_hf_token"
+        client.is_hf_live = True
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 200
+        fake_resp.json.return_value = {
+            "choices": [{"message": {"content": None}}]
+        }
+        with mock.patch("requests.post", return_value=fake_resp):
+            insights = client.generate_esg_insights({"metrics": {}, "rating_tier": "GOLD"})
+            self.assertNotIn("None", insights)
+            self.assertEqual(client.last_error, "RuntimeError")
+            self.assertTrue(client.get_runtime_metadata()["is_fallback"])
+
+    def test_credit_error_gives_safe_message_without_token(self) -> None:
+        client = GraniteReasoningClient()
+        client.hf_key = "hf_super_secret_token_value_999"
+        client.is_hf_live = True
+        fake_resp = mock.MagicMock()
+        fake_resp.status_code = 402
+        fake_resp.json.return_value = {"error": "You have no remaining credits."}
+        with mock.patch("requests.post", return_value=fake_resp):
+            insights = client.generate_esg_insights({"metrics": {}, "rating_tier": "GOLD"})
+            self.assertIn("(402)", client.last_reason)
+            self.assertNotIn("hf_super_secret_token_value_999", client.last_reason)
+            self.assertNotIn("hf_super_secret_token_value_999", insights)
+
+    def test_network_error_uses_type_name_only(self) -> None:
+        client = GraniteReasoningClient()
+        client.hf_key = "test_token"
+        client.is_hf_live = True
+        import requests
+        with mock.patch("requests.post", side_effect=requests.exceptions.ConnectionError("Leaked https://secret-url.com:8080")):
+            client.generate_esg_insights({"metrics": {}, "rating_tier": "GOLD"})
+            self.assertEqual(client.last_error, "ConnectionError")
+            self.assertNotIn("secret-url.com", client.last_reason)
+
+    def test_prompt_excludes_uploaded_company_name(self) -> None:
+        payload = {
+            "company_name": "TOP_SECRET_PROPRIETARY_COMPANY_LTD",
+            "rating_tier": "GOLD",
+            "metrics": {"total_ghg": 1000.0},
+            "benchmarks": {}
+        }
+        prompt = build_prompt(payload)
+        self.assertNotIn("TOP_SECRET_PROPRIETARY_COMPANY_LTD", prompt)
+        self.assertIn("GOLD", prompt)
+
+    def test_importing_module_does_not_modify_environment(self) -> None:
+        import sys
+        if "granite_client" in sys.modules:
+            del sys.modules["granite_client"]
+        env_before = dict(os.environ)
+        import granite_client
+        self.assertEqual(dict(os.environ), env_before)
+
+    def test_load_environment_never_overrides_existing_variable(self) -> None:
+        os.environ["CUSTOM_TEST_VARIABLE"] = "original_value"
+        with tempfile.NamedTemporaryFile("w", delete=False, suffix=".env", encoding="utf-8") as f:
+            f.write("CUSTOM_TEST_VARIABLE=new_leaked_value\n")
+            tmp_path = f.name
+        self.addCleanup(os.unlink, tmp_path)
+        from dotenv import load_dotenv
+        load_dotenv(dotenv_path=tmp_path, override=False)
+        self.assertEqual(os.environ["CUSTOM_TEST_VARIABLE"], "original_value")
 
 
 if __name__ == "__main__":

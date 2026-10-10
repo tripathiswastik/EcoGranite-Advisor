@@ -14,25 +14,32 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-
-def _load_env_if_present() -> None:
-    """Loads key-value pairs from local .env if present and not already in environment."""
-    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
-    if os.path.exists(env_path):
-        try:
-            with open(env_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        k, v = line.split("=", 1)
-                        k, v = k.strip(), v.strip().strip("'\"")
-                        if k and k not in os.environ:
-                            os.environ[k] = v
-        except Exception as exc:
-            logger.debug("Could not read .env: %s", exc)
+HF_MAX_TOKENS = 1000
 
 
-_load_env_if_present()
+def load_environment() -> None:
+    """Loads environment variables from local .env using python-dotenv without overriding existing variables."""
+    try:
+        from dotenv import load_dotenv
+        env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+        if os.path.exists(env_path):
+            load_dotenv(dotenv_path=env_path, override=False)
+    except Exception:
+        pass
+
+
+def build_prompt(audit_summary: dict[str, Any]) -> str:
+    """Constructs a structured prompt for IBM Granite, excluding free-text to prevent prompt injection."""
+    safe_summary = {
+        "rating_tier": audit_summary.get("rating_tier"),
+        "metrics": audit_summary.get("metrics", {}),
+        "benchmarks": audit_summary.get("benchmarks", {}),
+    }
+    return (
+        "You are an expert ESG sustainability auditor. Analyze the following corporate metrics "
+        "and synthesize 3 concise, prioritized decarbonization recommendations:\n"
+        f"{json.dumps(safe_summary, indent=2)}"
+    )
 
 
 class GraniteReasoningClient:
@@ -59,7 +66,7 @@ class GraniteReasoningClient:
         if self.is_watsonx_live and not self.last_error:
             return {
                 "engine": "watsonx",
-                "label": "IBM WatsonX Live API",
+                "label": "IBM WatsonX Live API (Configured)",
                 "model_id": self.model_id,
                 "is_fallback": False,
                 "fallback_reason": None
@@ -67,7 +74,7 @@ class GraniteReasoningClient:
         elif self.is_hf_live and not self.last_error:
             return {
                 "engine": "huggingface",
-                "label": f"Hugging Face Inference API ({self.model_id})",
+                "label": f"Hugging Face Inference API (Configured - {self.model_id})",
                 "model_id": self.model_id,
                 "is_fallback": False,
                 "fallback_reason": None
@@ -126,8 +133,8 @@ class GraniteReasoningClient:
 
     def _call_watsonx_granite(self, audit_summary: dict[str, Any]) -> str:
         """Calls IBM WatsonX Granite Foundation Model."""
-        from ibm_watsonx_ai.foundation_models import Model  # type: ignore
-        from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams  # type: ignore
+        from ibm_watsonx_ai.foundation_models import Model
+        from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 
         parameters = {
             GenParams.MAX_NEW_TOKENS: 500,
@@ -135,16 +142,7 @@ class GraniteReasoningClient:
             GenParams.TOP_P: 0.9,
         }
 
-        safe_summary = {
-            "rating_tier": audit_summary.get("rating_tier"),
-            "metrics": audit_summary.get("metrics", {}),
-            "benchmarks": audit_summary.get("benchmarks", {}),
-        }
-        prompt = (
-            "You are an expert ESG sustainability auditor. Analyze the following corporate metrics "
-            "and synthesize 3 concise, prioritized decarbonization recommendations:\n"
-            f"{json.dumps(safe_summary, indent=2)}"
-        )
+        prompt = build_prompt(audit_summary)
 
         model = Model(
             model_id=self.model_id,
@@ -159,16 +157,7 @@ class GraniteReasoningClient:
         """Calls Hugging Face Inference Router for IBM Granite models."""
         import requests
 
-        safe_summary = {
-            "rating_tier": audit_summary.get("rating_tier"),
-            "metrics": audit_summary.get("metrics", {}),
-            "benchmarks": audit_summary.get("benchmarks", {}),
-        }
-        prompt = (
-            "You are an expert ESG sustainability auditor. Analyze the following corporate metrics "
-            "and synthesize 3 concise, prioritized decarbonization recommendations:\n"
-            f"{json.dumps(safe_summary, indent=2)}"
-        )
+        prompt = build_prompt(audit_summary)
 
         headers = {
             "Authorization": f"Bearer {self.hf_key}",
@@ -193,14 +182,22 @@ class GraniteReasoningClient:
                     },
                     {"role": "user", "content": prompt}
                 ],
-                "max_tokens": 500,
+                "max_tokens": HF_MAX_TOKENS,
                 "temperature": 0.2
             }
             try:
                 resp = requests.post(chat_url, headers=headers, json=payload, timeout=25)
                 if resp.status_code == 200:
                     data = resp.json()
-                    return str(data["choices"][0]["message"]["content"])
+                    choices = data.get("choices") or []
+                    if choices:
+                        msg_obj = choices[0].get("message") or {}
+                        raw_content = msg_obj.get("content")
+                        if raw_content is not None and str(raw_content).strip() and str(raw_content).strip() != "None":
+                            return str(raw_content).strip()
+                    # Empty or null response content, fall back to next candidate model
+                    last_resp_info = "Empty or null response content"
+                    continue
                 elif resp.status_code == 402:
                     raise RuntimeError("Hugging Face API (402): Account has no inference credits. Fallback active.")
                 elif resp.status_code == 403:
