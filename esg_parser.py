@@ -278,45 +278,53 @@ def extract_esg_from_text(text: str, source_name: str) -> dict[str, Any]:
     an extraction_failed result listing what could not be found.
     """
     clean_text = text.replace("&amp;", "&")
+    # Mask CO2/CO2e units so their trailing digits do not interfere with numeric extraction
+    clean_text = re.sub(r"(?i)\bCO2e?\b", "CARBON_UNIT", clean_text)
     errors: list[str] = []
     emissions: dict[str, Any] = {}
     energy: dict[str, Any] = {}
     water_waste: dict[str, Any] = {}
     governance: dict[str, Any] = {}
 
+    def _get_metric(p_colon: str, p_newline: str) -> Optional[float]:
+        val = _find_number(p_colon, clean_text)
+        return val if val is not None else _find_number(p_newline, clean_text)
+
     company = re.search(
         r"(?:Company(?:\s*Name)?|Entity|Corporation|Organization)\s*[:\-]\s*([^\n\r]+)", clean_text, re.IGNORECASE
     )
+    if not company:
+        company = re.search(r"Reporting\s*Metric\s*\n\s*([^\n\r]+)", clean_text, re.IGNORECASE)
     year = re.search(r"(?:FY|fiscal\s*year|reporting\s*year|reporting\s*period)\s*[:\-]?\s*(?:FY)?(20\d{2})", clean_text, re.IGNORECASE)
 
     # Scope 1 (Direct Operational Emissions)
-    scope_1 = _find_number(
-        r"(?:Scope\s*1(?:\s*direct)?(?:\s*GHG)?\s*emissions?|Direct\s*Operational\s*Emissions(?:\s*\(Scope\s*1\))?|Direct\s*(?:GHG)?\s*emissions(?:\s*\(Scope\s*1\))?)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
+    scope_1 = _get_metric(
+        r"(?:Scope\s*1(?!\s*[\-–]\s*[23])(?:\s*(?:Direct|\(Direct\)|operational))?|Direct\s*Operational\s*Emissions(?:\s*\(Scope\s*1\))?|Direct\s*(?:GHG)?\s*emissions(?:\s*\(Scope\s*1\))?)\s*[:\-]\s*" + _NUMBER,
+        r"(?:Scope\s*1(?!\s*[\-–]\s*[23])\s*(?:Direct|\(Direct\))|Direct\s*Operational\s*Emissions)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
     )
     if scope_1 is None:
-        scope_1 = _find_number(r"(?:Scope\s*1|Direct\s*Emissions)\s*[:\-]?\s*" + _NUMBER, clean_text)
+        scope_1 = _find_number(r"(?:Scope\s*1(?!\s*[\-–]\s*[23])|Direct\s*Emissions)\s*[:\-]?\s*" + _NUMBER, clean_text)
 
     # Scope 2 (Indirect / Purchased Electricity)
-    scope_2 = _find_number(
-        r"(?:Scope\s*2(?:\s*indirect)?(?:\s*GHG)?\s*emissions?|Purchased\s*Electricity\s*Emissions|Purchased\s*Energy\s*Emissions|Indirect\s*(?:GHG)?\s*emissions(?:\s*\(Scope\s*2\))?)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
+    scope_2 = _get_metric(
+        r"(?:Scope\s*2(?!\s*[\-–]\s*[3])(?:\s*(?:indirect|electricity))?|Purchased\s*Electricity\s*Emissions|Purchased\s*Energy\s*Emissions|Indirect\s*(?:GHG)?\s*emissions(?:\s*\(Scope\s*2\))?)\s*[:\-]\s*" + _NUMBER,
+        r"(?:Scope\s*2\s*(?:Electricity|Indirect|\(Indirect\)|\(Electricity\))|Purchased\s*Electricity)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
     )
     if scope_2 is None:
         scope_2 = _find_number(r"(?:Scope\s*2|Purchased\s*Electricity)\s*[:\-]?\s*" + _NUMBER, clean_text)
 
     # Scope 3 (Value Chain / Supply Chain)
-    scope_3 = _find_number(
-        r"(?:Scope\s*3(?:\s*value\s*chain)?\s*emissions?|Value\s*Chain\s*Emissions|Supply\s*Chain\s*Emissions)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
+    scope_3 = _get_metric(
+        r"(?:Scope\s*3(?:\s*value\s*chain)?\s*emissions?|Value\s*Chain\s*Emissions|Supply\s*Chain\s*Emissions)\s*[:\-]\s*" + _NUMBER,
+        r"(?:Scope\s*3\s*(?:Value\s*Chain|\(Value\s*Chain\))|Value\s*Chain\s*Emissions)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
     )
     if scope_3 is None:
         scope_3 = _find_number(r"Scope\s*3\s*[:\-]?\s*" + _NUMBER, clean_text)
 
     # Total GHG / Total Carbon Footprint
-    total_ghg = _find_number(
-        r"(?:Total\s*GHG\s*footprint|Total\s*Carbon\s*Footprint|Total\s*GHG\s*emissions|Total\s*emissions)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
+    total_ghg = _get_metric(
+        r"(?:Total\s*GHG\s*footprint|Total\s*Carbon\s*Footprint|Total\s*GHG\s*emissions|Total\s*emissions)\s*[:\-]\s*" + _NUMBER,
+        r"(?:Total\s*GHG\s*Footprint|Total\s*Carbon\s*Footprint)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
     )
 
     # SBTi 2030 Target & YoY progress
@@ -324,9 +332,9 @@ def extract_esg_from_text(text: str, source_name: str) -> dict[str, Any]:
         r"(?:2030\s*Science[\s\-]Based\s*Target(?:\s*\(SBTi\))?|SBTi\s*2030\s*Target|2030\s*Target)\s*[:\-]?\s*" + _NUMBER,
         clean_text
     )
-    yoy_reduction = _find_number(
-        r"(?:YoY\s*progress\s*achieved|YoY\s*Carbon\s*Reduction|YoY\s*emissions?\s*reduction|Year[\s\-]over[\s\-]Year\s*reduction)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
+    yoy_reduction = _get_metric(
+        r"(?:YoY\s*progress\s*achieved|YoY\s*Carbon\s*Reduction|YoY\s*emissions?\s*reduction|Year[\s\-]over[\s\-]Year\s*reduction)\s*[:\-]\s*" + _NUMBER,
+        r"(?:YoY\s*Emission\s*Cut|YoY\s*Carbon\s*Reduction)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
     )
 
     # Energy: Total consumption, renewable sourced, and renewable share / clean power ratio
@@ -338,9 +346,9 @@ def extract_esg_from_text(text: str, source_name: str) -> dict[str, Any]:
         r"(?:Renewable\s*electricity\s*sourced|Renewable\s*energy\s*sourced|Renewable\s*power\s*consumed|Clean\s*electricity\s*consumed)\s*[:\-]?\s*" + _NUMBER,
         clean_text
     )
-    renewable_share = _find_number(
-        r"(?:Renewable\s*energy\s*share|Clean\s*Power\s*Ratio|Renewable\s*electricity\s*share|Renewable\s*share|Green\s*power\s*ratio)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
+    renewable_share = _get_metric(
+        r"(?:Renewable\s*energy\s*share|Clean\s*Power\s*Ratio|Renewable\s*electricity\s*share|Renewable\s*share|Green\s*power\s*ratio|Renewable\s*Power\s*Share)\s*[:\-]\s*" + _NUMBER,
+        r"(?:Renewable\s*Power\s*Share|Clean\s*Power\s*Ratio|Renewable\s*Energy\s*Share)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
     )
     re100_match = re.search(r"RE100\s*(?:Pledged|Committed|Member)?\s*[:\-]?\s*(Yes|True)", clean_text, re.IGNORECASE)
 
@@ -353,15 +361,15 @@ def extract_esg_from_text(text: str, source_name: str) -> dict[str, Any]:
         r"(?:Water\s*recycled\s*(?:percentage|share|ratio)?|Wastewater\s*Recovery\s*Rate|Water\s*recycling\s*rate)\s*[:\-]?\s*" + _NUMBER,
         clean_text
     )
-    waste_diverted = _find_number(
-        r"(?:Waste\s*diverted\s*from\s*landfill|Landfill\s*Diversion\s*Rate|Waste\s*diversion\s*rate)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
+    waste_diverted = _get_metric(
+        r"(?:Waste\s*diverted\s*from\s*landfill|Landfill\s*Diversion\s*Rate|Waste\s*diversion\s*rate|Waste\s*Diversion\s*/\s*Recycled)\s*[:\-]\s*" + _NUMBER,
+        r"(?:Waste\s*Diversion|Landfill\s*Diversion)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
     )
 
     # Social & Governance: Female board rep, independent directors, supplier code
-    female_board = _find_number(
-        r"(?:Female\s*board\s*representation|Female\s*Representation\s*on\s*Board|Women\s*on\s*board|Board\s*gender\s*diversity)\s*[:\-]?\s*" + _NUMBER,
-        clean_text
+    female_board = _get_metric(
+        r"(?:Female\s*board\s*representation|Female\s*Representation\s*on\s*Board|Women\s*on\s*board|Board\s*gender\s*diversity|Board\s*Gender\s*Diversity)\s*[:\-]\s*" + _NUMBER,
+        r"(?:Board\s*Gender\s*Diversity|Female\s*Representation)[^\n\r\d+]*?[\r\n]+\s*" + _NUMBER
     )
     independent_directors = _find_number(
         r"(?:Independent\s*directors\s*(?:share|percentage|ratio)?|Board\s*Independence\s*Ratio|Independent\s*board\s*ratio)\s*[:\-]?\s*" + _NUMBER,
