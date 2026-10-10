@@ -556,7 +556,8 @@ class EcoGraniteAdvisor:
 
     @staticmethod
     def _csrd_score(base: float, m: dict[str, Any]) -> dict[str, Any]:
-        score, penalties = base, []
+        score = base
+        penalties: list[str] = []
         renewable = m.get("renewable_pct", 0.0)
         if renewable < CSRD_RENEWABLE_HURDLE_PCT:
             penalty = round((CSRD_RENEWABLE_HURDLE_PCT - renewable) * 0.5, 1)
@@ -572,7 +573,8 @@ class EcoGraniteAdvisor:
 
     @staticmethod
     def _issb_score(base: float, m: dict[str, Any]) -> dict[str, Any]:
-        score, penalties = base, []
+        score = base
+        penalties: list[str] = []
         target = m.get("target_reduction_2030_pct")
         if target is None or target < ISSB_TARGET_HURDLE_PCT:
             score -= 15.0

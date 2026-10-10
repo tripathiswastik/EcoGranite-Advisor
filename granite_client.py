@@ -60,7 +60,7 @@ def build_prompt(audit_summary: dict[str, Any]) -> str:
 
 
 class GraniteReasoningClient:
-    def __init__(self, model_id: str = "ibm-granite/granite-3.0-8b-instruct", hf_api_key: Optional[str] = None):
+    def __init__(self, model_id: str = "ibm-granite/granite-3.0-8b-instruct", hf_api_key: Optional[str] = None) -> None:
         self.model_id = model_id
         # WatsonX credentials
         self.api_key = os.getenv("WATSONX_APIKEY")

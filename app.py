@@ -9,7 +9,7 @@ from __future__ import annotations
 import html
 import json
 import os
-from typing import Any
+from typing import Any, Optional
 
 try:
     import streamlit as st  # type: ignore
@@ -289,12 +289,14 @@ def full_width() -> dict[str, Any]:
     return {"use_container_width": True}
 
 
-def safe_dataframe(df: pd.DataFrame):
+def safe_dataframe(df: pd.DataFrame) -> None:
     """Safely renders a pandas DataFrame across all Streamlit versions (handles older versions without hide_index)."""
-    kwargs = full_width()
+    kwargs: dict[str, Any] = dict(full_width())
+    kwargs["hide_index"] = True
     try:
-        st.dataframe(df, hide_index=True, **kwargs)
+        st.dataframe(df, **kwargs)
     except TypeError:
+        kwargs.pop("hide_index", None)
         st.dataframe(df, **kwargs)
 
 
@@ -335,7 +337,7 @@ with st.sidebar:
         else:
             st.session_state.pop("hf_api_key", None)
 
-    advisor = get_advisor(model_choice, hf_api_key=st.session_state.get("hf_api_key"))
+    advisor = get_advisor(str(model_choice or "ibm-granite/granite-4.2-8b"), hf_api_key=st.session_state.get("hf_api_key"))
     runtime_meta = advisor.granite_client.get_runtime_metadata()
 
     # Ingestion Source Selector
@@ -466,7 +468,7 @@ rating_tier = analysis["rating_tier"]
 dq = analysis.get("data_quality", {})
 
 # Real-time Framework Recalculation
-fw_eval = advisor.calculate_framework_score(analysis, framework=framework_choice)
+fw_eval = advisor.calculate_framework_score(analysis, framework=str(framework_choice or "GRI Baseline"))
 active_score = fw_eval["score"]
 active_tier = fw_eval["tier"]
 
@@ -708,7 +710,7 @@ with tab_exec:
     st.markdown("### 📐 SASB SICS Sector-Specific Materiality Weighting")
     st.caption("Adjusts scoring weights dynamically based on industry operational characteristics (SASB SICS / ISSB IFRS S2).")
 
-    sec_res = advisor.calculate_sector_weighted_score(analysis, sector=sector_choice)
+    sec_res = advisor.calculate_sector_weighted_score(analysis, sector=str(sector_choice or "General Enterprise"))
     sec_col1, sec_col2 = st.columns([1, 1.2])
 
     with sec_col1:
