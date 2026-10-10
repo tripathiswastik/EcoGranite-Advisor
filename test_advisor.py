@@ -550,6 +550,15 @@ class TestMethodologyHardeningAndReliability(unittest.TestCase):
                 text = client._call_huggingface_granite({"company_name": "Test"})
                 self.assertEqual(text, "Retry success")
 
+    def test_explicit_hf_token_parameter(self) -> None:
+        client = GraniteReasoningClient(hf_api_key="hf_custom_param")
+        self.assertEqual(client.hf_key, "hf_custom_param")
+        self.assertTrue(client.is_hf_live)
+
+        advisor = EcoGraniteAdvisor(hf_api_key="hf_advisor_param")
+        self.assertEqual(advisor.granite_client.hf_key, "hf_advisor_param")
+        self.assertTrue(advisor.granite_client.is_hf_live)
+
 
 if __name__ == "__main__":
     unittest.main()

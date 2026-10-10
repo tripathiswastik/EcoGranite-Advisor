@@ -150,9 +150,9 @@ def _fmt(value: Any, spec: str = ".1f", suffix: str = "") -> str:
 class EcoGraniteAdvisor:
     """Scores ESG disclosures and produces reports."""
 
-    def __init__(self, model_id: str = DEFAULT_MODEL_ID) -> None:
+    def __init__(self, model_id: str = DEFAULT_MODEL_ID, hf_api_key: Optional[str] = None) -> None:
         self.model_id = model_id
-        self.granite_client = GraniteReasoningClient(model_id=model_id)
+        self.granite_client = GraniteReasoningClient(model_id=model_id, hf_api_key=hf_api_key)
 
     def load_document(self, file_source: Any) -> dict[str, Any]:
         """Loads and normalizes an ESG report via the parser pipeline."""

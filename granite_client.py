@@ -60,7 +60,7 @@ def build_prompt(audit_summary: dict[str, Any]) -> str:
 
 
 class GraniteReasoningClient:
-    def __init__(self, model_id: str = "ibm-granite/granite-3.0-8b-instruct"):
+    def __init__(self, model_id: str = "ibm-granite/granite-3.0-8b-instruct", hf_api_key: Optional[str] = None):
         self.model_id = model_id
         # WatsonX credentials
         self.api_key = os.getenv("WATSONX_APIKEY")
@@ -68,8 +68,9 @@ class GraniteReasoningClient:
         self.service_url = os.getenv("WATSONX_URL", "https://us-south.ml.cloud.ibm.com")
         self.is_watsonx_live = bool(self.api_key and self.project_id)
 
-        # Hugging Face Inference credentials
-        self.hf_key = (os.getenv("HUGGINGFACE_API_KEY") or os.getenv("HF_TOKEN") or "").strip() or None
+        # Hugging Face Inference credentials (explicit parameter takes precedence over env)
+        raw_key = (hf_api_key or os.getenv("HUGGINGFACE_API_KEY") or os.getenv("HF_TOKEN") or "").strip()
+        self.hf_key = raw_key or None
         self.is_hf_live = bool(self.hf_key)
 
         # is_live corresponds specifically to WatsonX live mode per review specifications

@@ -263,9 +263,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-def get_advisor(model_id: str) -> EcoGraniteAdvisor:
+def get_advisor(model_id: str, hf_api_key: Optional[str] = None) -> EcoGraniteAdvisor:
     """Instantiates the EcoGraniteAdvisor instance."""
-    return EcoGraniteAdvisor(model_id=model_id)
+    return EcoGraniteAdvisor(model_id=model_id, hf_api_key=hf_api_key)
 
 
 def load_dataset_file(filename: str) -> dict[str, Any]:
@@ -320,7 +320,22 @@ with st.sidebar:
         help="Select foundation model for automated synthesis and compliance reasoning."
     )
 
-    advisor = get_advisor(model_choice)
+    # API Credentials & Token Configuration
+    with st.expander("🔑 Hugging Face API Token (Optional)", expanded=False):
+        user_hf_key = st.text_input(
+            "Access Token",
+            type="password",
+            value=st.session_state.get("hf_api_key", ""),
+            placeholder="hf_...",
+            help="Optional. Paste your Hugging Face User Access Token (with inference permissions). If left blank, uses .env or local deterministic reasoning."
+        ).strip()
+        if user_hf_key:
+            st.session_state["hf_api_key"] = user_hf_key
+            st.caption("🔒 Session API token active.")
+        else:
+            st.session_state.pop("hf_api_key", None)
+
+    advisor = get_advisor(model_choice, hf_api_key=st.session_state.get("hf_api_key"))
     runtime_meta = advisor.granite_client.get_runtime_metadata()
 
     # Ingestion Source Selector
