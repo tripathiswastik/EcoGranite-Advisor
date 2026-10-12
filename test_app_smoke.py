@@ -1,7 +1,7 @@
 """
-Smoke tests for the Streamlit dashboard (app.py).
-Ensures all bundled sample datasets render without unhandled exceptions
-and that the compliant leader dataset is never marked [DISQUALIFIED].
+Python Version: 3.10+ (Target: Python 3.10, 3.11, 3.12)
+Purpose: Smoke tests for Streamlit dashboard verifying sample dataset rendering and validation states.
+Runs-in: Pytest and unittest execution harnesses across local and CI environments.
 """
 
 from __future__ import annotations

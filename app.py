@@ -1,7 +1,7 @@
 """
-EcoGranite-Advisor: High-Fidelity ESG Compliance & Decarbonization Dashboard
-Autonomous Corporate Sustainability & Decarbonization Audit Engine.
-Powered by IBM Granite 3.0 Reasoning & IBM Docling Document Parsing.
+Python Version: 3.10+ (Target: Python 3.10, 3.11, 3.12)
+Purpose: Interactive Streamlit web application and visualization dashboard for corporate ESG compliance audit.
+Runs-in: Streamlit runtime environment, local server (default port 8501), or cloud container.
 """
 
 from __future__ import annotations

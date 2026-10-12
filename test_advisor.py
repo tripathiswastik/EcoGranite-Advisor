@@ -1,15 +1,7 @@
 """
-Comprehensive Test Suite for EcoGranite-Advisor Engine
-Covers:
-- Continuous scoring in both directions (higher/lower is better, edge cases, target=0)
-- Data integrity & GHG Protocol reconciliation (S1+S2+S3 != Reported Total)
-- Preserving anomalies (no silent clamping, collecting validation warnings)
-- Three-state missing data handling (PASS, FAIL, UNKNOWN)
-- Refusal on extraction failure (never inventing fake numbers)
-- Dynamic Scope 3 derivation
-- Decoupled AI insight generation and WatsonX error diagnostics
-- End-to-end evaluation on Good, Poor, and Invalid datasets
-- Code review regressions & security verifications (TestReviewRegressions)
+Python Version: 3.10+ (Target: Python 3.10, 3.11, 3.12)
+Purpose: Comprehensive test suite for EcoGranite-Advisor Engine covering continuous scoring, GHG protocol, and anomaly preservation.
+Runs-in: Pytest and unittest execution harnesses across local and CI environments.
 """
 
 from __future__ import annotations
