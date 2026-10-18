@@ -28,14 +28,14 @@ Traditional text extraction tools flatten these tables, misaligning GHG rows wit
 
 ```mermaid
 graph TD
-    A[Corporate ESG Report<br/>PDF / DOCX / JSON] --> B[IBM Docling Ingestion Bridge<br/>esg_parser.py]
-    B --> C{Data Integrity &<br/>Reconciliation Check}
-    C -->|Reconciliation Discrepancy| D[Refusal / Disqualification Flag<br/>Never Fakes Data]
-    C -->|Valid Disclosures| E[4-Pillar Continuous Scoring Engine<br/>Environmental 60 | Social 15 | Governance 15 | Data Quality 10]
-    E --> F[Materiality & Framework Adjuster<br/>SEBI BRSR Core | CSRD ESRS | SASB SICS]
-    F --> G[IBM Granite 3.0 Reasoning Engine<br/>granite_client.py]
-    G --> H[Interactive Streamlit Dashboard<br/>app.py]
-    G --> I[Decarbonization Action Roadmap<br/>& Audit Report Export]
+    A["Corporate ESG Report<br/>PDF / DOCX / JSON"] --> B["IBM Docling Ingestion Bridge<br/>esg_parser.py"]
+    B --> C{"Data Integrity &<br/>Reconciliation Check"}
+    C -->|Reconciliation Discrepancy| D["Refusal / Disqualification Flag<br/>Never Fakes Data"]
+    C -->|Valid Disclosures| E["4-Pillar Continuous Scoring Engine<br/>Environmental 60 • Social 15 • Governance 15 • Data Quality 10"]
+    E --> F["Materiality & Framework Adjuster<br/>SEBI BRSR Core • CSRD ESRS • SASB SICS"]
+    F --> G["IBM Granite 3.0 Reasoning Engine<br/>granite_client.py"]
+    G --> H["Interactive Streamlit Dashboard<br/>app.py"]
+    G --> I["Decarbonization Action Roadmap<br/>& Audit Report Export"]
 ```
 
 ---
