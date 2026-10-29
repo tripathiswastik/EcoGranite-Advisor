@@ -310,5 +310,6 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 ---
 
 ## 🏷️ Repository Metadata & Topic Tags
-- **Core Topics**: `esg-auditing` `ibm-granite` `docling` `ai-agents` `llm-engineering` `security-guardrails` `python`
+- **About Description**: Autonomous corporate ESG sustainability audit engine powered by IBM Granite 3.0 & IBM Docling for the IBM SkillsBuild AI Builders Challenge.
+- **Core Topics**: `esg-auditing` `ibm-granite` `docling` `ai-agents` `llm-engineering` `sustainability` `streamlit` `watsonx` `security-guardrails` `python`
 - **Governance**: Follows [Antigravity AI Rules](file:///d:/ag-ai/.agents/rules/antigravity-rules.md) and [Multi-Agent SDLC Contracts](file:///d:/ag-ai/.agents/rules/multi-agent-prompts.md).
