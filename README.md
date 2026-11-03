@@ -298,7 +298,7 @@ The resulting zip file is written to `dist/EcoGranite-Advisor-v4.2.zip` and veri
 
 ## 👤 Author
 
-- **Swastik Tripathi** — [GitHub (@tripathiswastik)](https://github.com/tripathiswastik)
+- **Swastik Tripathi** — [GitHub (@tripathiswastik)](https://github.com/tripathiswastik) • [LinkedIn](https://www.linkedin.com/in/swastik-tripathi-52333511a/)
 
 ---
 
