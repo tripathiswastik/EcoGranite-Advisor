@@ -197,7 +197,11 @@ streamlit run app.py
 ```
 *Access the dashboard at `http://localhost:8501` to upload disclosures, inspect Scope 1–3 charts, and review Granite roadmaps.*
 
-### 2. Run the Advisor Engine (CLI)
+### 2. Deploy the Dashboard
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the Streamlit Community Cloud setup. The dashboard runs without API credentials using its local deterministic reasoning fallback.
+
+### 3. Run the Advisor Engine (CLI)
 ```bash
 # Run with sample report
 python advisor_engine.py --input sample_esg_report.json
@@ -206,13 +210,13 @@ python advisor_engine.py --input sample_esg_report.json
 python advisor_engine.py --input path/to/your_report.json
 ```
 
-### 3. Run the Automated Test Suite
+### 4. Run the Automated Test Suite
 ```bash
 # Run all unit and smoke tests
 python -m unittest discover
 ```
 
-### 4. Example Audit Report Output
+### 5. Example Audit Report Output
 ```text
 ================================================================================
 [*] ECOGRANITE ADVISOR: CORPORATE ESG AUDIT REPORT
