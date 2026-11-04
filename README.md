@@ -3,13 +3,13 @@
 [![Challenge](https://img.shields.io/badge/Challenge-IBM%20SkillsBuild%20AI%20Builders-052F5F.svg?style=flat&logo=IBM)](https://github.com/IBM-SkillsBuild-AI-Builders-Challenge)
 [![Model](https://img.shields.io/badge/Model-IBM%20Granite%203.0-blue.svg)](https://huggingface.co/ibm-granite)
 [![Parser](https://img.shields.io/badge/Parser-IBM%20Docling%20Bridge-green.svg)](https://github.com/DS4SD/docling)
-[![Tests](https://img.shields.io/badge/Tests-Passing%20(41%2F41)-brightgreen.svg)](https://github.com/tripathiswastik/EcoGranite-Advisor)
+[![Tests](https://img.shields.io/badge/Tests-46%20passed%2C%202%20skipped-brightgreen.svg)](https://github.com/tripathiswastik/EcoGranite-Advisor)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Author](https://img.shields.io/badge/Author-Swastik%20Tripathi-blueviolet.svg)](https://github.com/tripathiswastik)
 
 An intelligent, autonomous ESG (Environmental, Social, and Governance) corporate sustainability audit engine developed for the **IBM SkillsBuild AI Builders Challenge**. 
 
-EcoGranite-Advisor ingests corporate sustainability disclosures, provides an **IBM Docling** extraction bridge for complex PDF reports, performs risk-weighted continuous compliance auditing across **4 Defensible Pillars (Environmental, Social, Governance, Data Quality)**, provides an interactive **Streamlit Web Dashboard (`app.py`)**, and generates decarbonization roadmaps powered by **IBM Granite 3.0** (with both live WatsonX API support and a deterministic local fallback).
+EcoGranite-Advisor ingests JSON, PDF, DOCX, and TXT sustainability disclosures, provides an optional **IBM Docling** extraction bridge for complex documents, performs continuous readiness scoring across four pillars (Environmental, Social, Governance, and Data Quality), and serves an interactive **Streamlit dashboard**. Optional IBM WatsonX or Hugging Face inference generates narrative recommendations; the deterministic local engine works without model credentials.
 
 ---
 
@@ -130,8 +130,14 @@ EcoGranite-Advisor ingests raw corporate disclosures and extracts verified GHG a
    - Evaluates dual materiality axes: **Outside-In Financial Risk Exposure** alongside **Inside-Out Environmental & Social Impact**.
 9. **🏆 Multi-Company Framework Scorecard Summary (v3.0)**:
    - Standardized cross-framework audit scorecard comparing **EcoGlobal**, **Siemens AG**, and **Infosys Limited** across GRI Baseline, CSRD ESRS Strict, and SEBI BRSR Core.
-10. **🧪 Comprehensive Adversarial Test Suite (`test_advisor.py`)**:
-   - 32 automated unit tests (100% passing) validating continuous scoring, reconciliation, refusal, and v3.0 sector/double materiality models.
+10. **🧪 Automated Test Suite (`test_advisor.py`, `test_app_smoke.py`)**:
+   - 46 tests pass; 2 Streamlit AppTest cases are skipped when the installed Streamlit testing support is unavailable.
+
+## ✅ Repository Review
+
+The repository's 27-file snapshot was reviewed, including the parser, scoring engine, Streamlit UI, model-provider integration, release packaging, CI, configuration, and tests. The security scan found no reportable findings. Validation completed with 46 passing unit tests (2 skipped), Ruff, strict mypy on the core modules, and Python bytecode compilation.
+
+The review did not exercise live WatsonX or Hugging Face credentials. ESG scores are screening heuristics and must not be treated as legal or assurance conclusions; see the methodology notice below.
 
 ---
 
@@ -153,7 +159,7 @@ EcoGranite-Advisor/
 ├── advisor_engine.py                # Main CLI entrypoint & continuous compliance auditor
 ├── esg_parser.py                    # IBM Docling PDF/DOCX bridge, reconciliation & validator
 ├── granite_client.py                # Dual IBM Granite client (WatsonX API + Local Reasoning)
-├── test_advisor.py                  # Adversarial unit test suite (32 tests)
+├── test_advisor.py                  # Unit and adversarial tests
 ├── test_app_smoke.py                # Dashboard smoke and AppTest suite
 ├── pyproject.toml                   # Ruff & mypy configuration
 ├── sample_esg_report.json           # Sample 1: Compliant Leader ESG dataset (EcoGlobal)
@@ -161,7 +167,7 @@ EcoGranite-Advisor/
 ├── sample_esg_report_siemens.json   # Sample 3: Global Enterprise benchmark (Siemens AG)
 ├── sample_esg_report_poor.json      # Sample 4: Poor / Lagging ESG dataset (CarbonHeavy)
 ├── sample_esg_report_invalid.json   # Sample 5: Incoherent / Reconciliation failure dataset
-├── ECOGRANITE_FRAMEWORK.md          # 5-Pillar Comprehensive ESG Decarbonization Specification
+├── ECOGRANITE_FRAMEWORK.md          # ESG framework and scoring specification
 ├── .env.example                     # Environment template for WatsonX & Hugging Face credentials
 ├── requirements.txt                 # Minimal dependencies for Docling, WatsonX, HF, and Streamlit
 └── README.md                        # Challenge documentation & architecture specification
@@ -200,6 +206,8 @@ streamlit run app.py
 ### 2. Deploy the Dashboard
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for the Streamlit Community Cloud setup. The dashboard runs without API credentials using its local deterministic reasoning fallback.
+
+The current public deployment is [ecogranite-advisor.streamlit.app](https://ecogranite-advisor.streamlit.app/) and is served from the `fix/deployment-readiness` branch.
 
 ### 3. Run the Advisor Engine (CLI)
 ```bash
@@ -295,7 +303,7 @@ The resulting zip file is written to `dist/EcoGranite-Advisor-v4.2.zip` and veri
 
 - **Reasoning LLM:** [IBM Granite 4.2 / 3.0](https://huggingface.co/ibm-granite) / WatsonX AI Foundation Models
 - **Document Intelligence:** [IBM Docling (DS4SD)](https://github.com/DS4SD/docling)
-- **Runtime:** Python 3.8+
+- **Runtime:** Python 3.10+
 - **Reporting Standards:** GRI (Global Reporting Initiative), TCFD, SASB
 
 ---
