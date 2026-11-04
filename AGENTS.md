@@ -18,10 +18,7 @@ tags:
 
 # REPOSITORY GOVERNANCE & MULTI-AGENT SDLC RULES
 
-This repository is governed by the workspace-wide AI safety, RUFlow prompt injection safeguards, and multi-agent interaction contracts defined in:
-- [antigravity-rules.md](file:///d:/ag-ai/.agents/rules/antigravity-rules.md)
-- [multi-agent-prompts.md](file:///d:/ag-ai/.agents/rules/multi-agent-prompts.md)
-- [Workspace AGENTS.md](file:///d:/ag-ai/AGENTS.md)
+This repository is governed by standard AI safety engineering, input validation, and structured SDLC contracts.
 
 ---
 
