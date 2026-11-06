@@ -2,7 +2,7 @@
 <!-- Brief bullet points explaining what changes were made and why -->
 - 
 
-## Security & Privacy Checklist (RUFlow / Antigravity Rules)
+## Security & Privacy Checklist
 - [ ] **Secret & Key Hygiene**: No raw API keys, private tokens, or credentials committed.
 - [ ] **Data Isolation**: No proprietary PII or production customer data included; synthetic fixtures used.
 - [ ] **Least Privilege Tool Use**: Verified typed parameter invocation; no arbitrary shell injection vectors.

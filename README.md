@@ -17,7 +17,7 @@ EcoGranite-Advisor ingests JSON, PDF, DOCX, and TXT sustainability disclosures, 
 
 Corporate ESG & climate disclosures are filed in massive, multi-column PDF reports containing intricate emission tables, supply chain metrics, and varying reporting standards (**GRI**, **SASB**, **TCFD**). 
 
-Traditional text extraction tools flatten these tables, misaligning GHG rows with carbon quantities. Furthermore:
+Traditional text extraction tools flatten these tables, misaligning GHG rows with carbon quantities. Even worse:
 1. **Silent Data Fabrication**: Naive parsers often substitute default or sample numbers when extraction fails, concealing missing disclosures.
 2. **Reconciliation Discrepancies**: Reported total GHG numbers frequently contradict the sum of Scope 1 + Scope 2 + Scope 3 disclosures.
 3. **Binary Cutoff Fallacies**: Rigid thresholds penalize near-compliant companies as total failures while rewarding boundary cases without risk weighting.
