@@ -1,7 +1,7 @@
 """
 IBM Granite Reasoning Client
 Supports live inference via IBM WatsonX AI and Hugging Face Inference API,
-with a deterministic offline rule-based reasoning engine as a seamless fallback.
+with a deterministic offline rule-based reasoning engine as a local fallback.
 Exposes engine runtime metadata, catches and reports API errors, and generates structured cards.
 """
 
@@ -34,8 +34,10 @@ def load_environment() -> None:
     deterministic.
     """
     try:
-        from dotenv import load_dotenv
-    except ImportError:
+        import importlib
+        dotenv_mod = importlib.import_module("dotenv")
+        load_dotenv = getattr(dotenv_mod, "load_dotenv")
+    except (ImportError, AttributeError):
         logger.debug("python-dotenv not installed; skipping .env loading")
         return
     env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
@@ -295,8 +297,11 @@ class GraniteReasoningClient:
 
     def _call_watsonx_granite(self, audit_summary: dict[str, Any]) -> str:
         """Calls IBM WatsonX Granite Foundation Model."""
-        from ibm_watsonx_ai.foundation_models import Model
-        from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
+        import importlib
+        foundation_models = importlib.import_module("ibm_watsonx_ai.foundation_models")
+        metanames = importlib.import_module("ibm_watsonx_ai.metanames")
+        Model = getattr(foundation_models, "Model")
+        GenParams = getattr(metanames, "GenTextParamsMetaNames")
 
         parameters = {
             GenParams.MAX_NEW_TOKENS: WATSONX_MAX_TOKENS,
@@ -321,7 +326,7 @@ class GraniteReasoningClient:
         Tries the selected model first, then the Granite 4.2 fallbacks. Raises
         RuntimeError with a safe, token-free message on failure.
         """
-        import requests
+        import requests  # type: ignore[import-untyped]
 
         headers = {"Authorization": f"Bearer {self.hf_key}", "Content-Type": "application/json"}
         messages = [

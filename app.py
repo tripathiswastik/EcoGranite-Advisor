@@ -81,7 +81,7 @@ def full_width() -> dict[str, Any]:
         ver = [int(p) for p in st.__version__.split(".")[:2]]
         if (ver[0] > 1) or (ver[0] == 1 and ver[1] >= 50):
             return {"width": "stretch"}
-    except Exception:
+    except (ValueError, AttributeError):
         pass
     return {"use_container_width": True}
 
@@ -134,7 +134,7 @@ with st.sidebar:
         else:
             st.session_state.pop("hf_api_key", None)
 
-    advisor = get_advisor(str(model_choice or "ibm-granite/granite-4.2-8b"), hf_api_key=st.session_state.get("hf_api_key"))
+    advisor = get_advisor(model_choice or "ibm-granite/granite-4.2-8b", hf_api_key=st.session_state.get("hf_api_key"))
     runtime_meta = advisor.granite_client.get_runtime_metadata()
 
     # Ingestion Source Selector
@@ -262,7 +262,7 @@ rating_tier = analysis["rating_tier"]
 dq = analysis.get("data_quality", {})
 
 # Real-time Framework Recalculation
-fw_eval = advisor.calculate_framework_score(analysis, framework=str(framework_choice or "GRI Baseline"))
+fw_eval = advisor.calculate_framework_score(analysis, framework=framework_choice or "GRI Baseline")
 active_score = fw_eval["score"]
 active_tier = fw_eval["tier"]
 
@@ -505,7 +505,7 @@ with tab_exec:
     st.markdown("### 📐 SASB SICS Sector-Specific Materiality Weighting")
     st.caption("Adjusts scoring weights dynamically based on industry operational characteristics (SASB SICS / ISSB IFRS S2).")
 
-    sec_res = advisor.calculate_sector_weighted_score(analysis, sector=str(sector_choice or "General Enterprise"))
+    sec_res = advisor.calculate_sector_weighted_score(analysis, sector=sector_choice or "General Enterprise")
     sec_col1, sec_col2 = st.columns([1, 1.2])
 
     with sec_col1:
@@ -602,7 +602,7 @@ with tab_exec:
 
     scorecard_data = get_scorecard_data(advisor)
     df_sc = pd.DataFrame(scorecard_data)
-    df_sc.columns = ["Company Entity", "Audit Cycle", "GRI Baseline Score", "CSRD ESRS Strict Score", "SEBI BRSR Core Status", "Primary Audit Priority"]
+    df_sc.columns = pd.Index(["Company Entity", "Audit Cycle", "GRI Baseline Score", "CSRD ESRS Strict Score", "SEBI BRSR Core Status", "Primary Audit Priority"])
     safe_dataframe(df_sc)
 
 # ------------------------------------------
